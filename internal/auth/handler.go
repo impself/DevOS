@@ -1,0 +1,140 @@
+package auth
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Handler 认证相关的 HTTP handler。
+type Handler struct {
+	svc Service
+}
+
+// NewHandler 创建认证 Handler。
+func NewHandler(svc Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// registerRequest 注册请求参数。
+type registerRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Password string `json:"password" binding:"required,min=6,max=72"`
+}
+
+// loginRequest 登录请求参数。
+type loginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+// userResponse 用户信息响应，不包含密码。
+type userResponse struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+	Role     string `json:"role"`
+}
+
+// Register POST /api/v1/auth/register — 用户注册。
+func (h *Handler) Register(c *gin.Context) {
+	var req registerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    "VALIDATION_ERROR",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	user, err := h.svc.Register(req.Email, req.Username, req.Password)
+	if err != nil {
+		if errors.Is(err, ErrUserExists) {
+			c.JSON(http.StatusConflict, gin.H{
+				"code":    "USER_EXISTS",
+				"message": "email already registered",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "INTERNAL_ERROR",
+			"message": "failed to create user",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"code":    0,
+		"message": "success",
+		"data": userResponse{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Role:     user.Role,
+		},
+	})
+}
+
+// Login POST /api/v1/auth/login — 用户登录。
+func (h *Handler) Login(c *gin.Context) {
+	var req loginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    "VALIDATION_ERROR",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	tokens, err := h.svc.Login(req.Email, req.Password)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCreds) {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    "INVALID_CREDENTIALS",
+				"message": "invalid email or password",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "INTERNAL_ERROR",
+			"message": "login failed",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    tokens,
+	})
+}
+
+// Me GET /api/v1/auth/me — 获取当前用户信息。需要 JWT 认证。
+func (h *Handler) Me(c *gin.Context) {
+	userID := c.GetString("userID")
+	user, err := h.svc.GetByID(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    "USER_NOT_FOUND",
+			"message": "user not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data": userResponse{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Avatar:   user.Avatar,
+			Role:     user.Role,
+		},
+	})
+}
