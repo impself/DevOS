@@ -58,9 +58,9 @@
 
 | 层 | 技术 |
 |------|------|
-| 后端 | Go 1.23+, Gin, GORM, pgx, go-redis, Zap, golang-migrate |
+| 后端 | Go 1.25+, Gin, GORM, pgx, go-redis, Zap, golang-migrate |
 | AI | go-openai, pgvector, 原生 Agent |
-| 前端 | React 19, TypeScript, Vite, Zustand, React Query, TailwindCSS, shadcn/ui, TipTap, Yjs |
+| 前端 | React 19, TypeScript, Vite, TailwindCSS v4, shadcn/ui, React Router, Axios |
 | 数据 | PostgreSQL 16+ pgvector, Redis |
 | 监控 | Prometheus, Grafana, Loki, Jaeger |
 
@@ -109,7 +109,7 @@ model.go      → 数据模型定义（struct + GORM tag）
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
-| 1 | 骨架 + 用户系统 + 权限 | 待开始 |
+| 1 | 骨架 + 用户系统 + 权限 + 前端联调 | 进行中 |
 | 2 | 项目管理 + 文档编辑器 + 审计 | 待开始 |
 | 3 | AI Agent + RAG + Gitea 集成 | 待开始 |
 | 后续 | 实时协同、自动周报、Code Review | 待开始 |
@@ -121,6 +121,47 @@ model.go      → 数据模型定义（struct + GORM tag）
 每次完成一个功能模块的开发，需要在 `docs/` 下创建对应的知识文件。
 
 ## 用户偏好
+
+- 代码注释语言：中文
+- 输出风格：老韩暴躁技术流（但 caveman mode 也开着，不冲突）
+- 不要主动 git commit / push，除非用户明确要求
+- 危险操作必须确认
+
+## 前端架构
+
+### 目录结构
+
+```text
+frontend/src/
+├── api/              # Axios API 层（client.ts + 业务模块）
+├── components/
+│   ├── ui/           # shadcn/ui 组件（button/input/checkbox/label + 业务组件）
+│   └── ProtectedRoute.tsx  # 路由守卫
+├── context/          # React Context（AuthContext）
+├── layouts/          # 布局组件（DashboardLayout = sidebar + outlet）
+├── lib/              # 工具函数（cn, utils）
+└── pages/            # 页面组件（DashboardPage, ProjectDetailPage）
+```
+
+### 前端分层规范
+
+```text
+api/client.ts       → Axios 实例，JWT 注入，401 自动跳转
+api/auth.ts         → 认证 API（login/register/getMe）
+api/project.ts      → 项目 API（CRUD + 成员管理）
+context/AuthContext  → 全局认证状态（user/token/isAuthenticated）
+layouts/            → 共享布局（侧边栏 + top bar）
+pages/              → 页面级组件，组合 api + context + ui
+components/ui/      → 纯 UI 组件，不包含业务逻辑
+```
+
+### 路由设计
+
+- `/login` — 公开，动画登录页
+- `/register` — 公开，动画注册页（角色解锁 + 密码强度）
+- `/dashboard` — 受保护，项目列表 + 创建
+- `/projects/:id` — 受保护，项目详情 + 编辑 + 成员管理
+- 未认证用户自动重定向到 `/login`
 
 - 代码注释语言：中文
 - 输出风格：老韩暴躁技术流（但 caveman mode 也开着，不冲突）

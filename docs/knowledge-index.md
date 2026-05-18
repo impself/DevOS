@@ -48,6 +48,8 @@
 
 | 文件 | 知识点 |
 |------|--------|
+| [react-context-auth.md](frontend/react-context-auth.md) | React Context：认证状态管理、路由守卫、useAuth Hook |
+| [shadcn-tailwind.md](frontend/shadcn-tailwind.md) | shadcn/ui + TailwindCSS v4：cn()、cva 变体、CSS 变量主题 |
 | [react-patterns.md](frontend/react-patterns.md) | React 模式：Hooks、Context、性能优化、状态管理 |
 | [websocket.md](frontend/websocket.md) | WebSocket：协议、Go 实现、连接管理、心跳 |
 | [tiptap-yjs.md](frontend/tiptap-yjs.md) | TipTap + Yjs：CRDT、协同编辑、冲突解决 |

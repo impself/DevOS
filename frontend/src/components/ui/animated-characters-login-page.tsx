@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Mail, Sparkles } from "lucide-react";
-import { login } from "@/api/auth";
+import { useAuth } from "@/context/AuthContext";
 
 // Pupil — standalone pupil dot that tracks mouse position or follows a forced direction
 interface PupilProps {
@@ -150,6 +150,7 @@ const EyeBall = ({
 // LoginPage — animated login page with four cartoon characters that react to user input
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -269,15 +270,8 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await login(email, password);
-      if (res.code === 0 && res.data) {
-        // Persist JWT token and user info to localStorage
-        localStorage.setItem("access_token", res.data.access_token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-        navigate("/dashboard");
-      } else {
-        setError(res.message || "Login failed, please try again.");
-      }
+      await login(email, password);
+      // AuthContext handles token persistence and navigation
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data

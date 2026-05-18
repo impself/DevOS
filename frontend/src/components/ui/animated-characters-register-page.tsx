@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Sparkles } from "lucide-react";
-import { register, login } from "@/api/auth";
+import { useAuth } from "@/context/AuthContext";
 
 // ─── Password strength calculator ────────────────────────────────────
 // Returns 0-4 score: length, uppercase, lowercase, digit, special char
@@ -154,6 +154,7 @@ const Pupil = ({ size = 12, maxDistance = 5, pupilColor = "black", forceLookX, f
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   // Form state
   const [email, setEmail] = useState("");
@@ -238,23 +239,15 @@ function RegisterPage() {
     if (pwStrength < 2) { setError("Password is too weak. Use uppercase, numbers, or special characters."); return; }
     setIsLoading(true);
     try {
+      // AuthContext.register handles register + auto-login + token persistence + navigation
       await register(email, username, password);
-      // Auto-login after registration
-      const res = await login(email, password);
-      if (res.code === 0 && res.data) {
-        localStorage.setItem("access_token", res.data.access_token);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-        navigate("/dashboard");
-      } else {
-        navigate("/login");
-      }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed, please try again.";
       setError(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [email, username, password, confirmPw, pwStrength, navigate]);
+  }, [email, username, password, confirmPw, pwStrength, register]);
 
   // Strength label and color for the progress bar
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][pwStrength] || "";

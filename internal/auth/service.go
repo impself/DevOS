@@ -19,7 +19,7 @@ var (
 // Service 认证业务接口。
 type Service interface {
 	Register(email, username, password string) (*User, error)
-	Login(email, password string) (*TokenPair, error)
+	Login(email, password string) (*LoginResult, error)
 	ValidateToken(tokenStr string) (*middleware.Claims, error)
 	GetByID(id string) (*User, error)
 }
@@ -29,6 +29,22 @@ type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int64  `json:"expires_in"`
+}
+
+// LoginUser 登录响应中的用户基本信息。
+type LoginUser struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+// LoginResult 登录成功后的完整响应，包含 token 对和用户信息。
+type LoginResult struct {
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	ExpiresIn    int64     `json:"expires_in"`
+	User         LoginUser `json:"user"`
 }
 
 type service struct {
@@ -65,8 +81,8 @@ func (s *service) Register(email, username, password string) (*User, error) {
 	return user, nil
 }
 
-// Login 邮箱密码登录，验证通过后返回 JWT Token 对。
-func (s *service) Login(email, password string) (*TokenPair, error) {
+// Login 邮箱密码登录，验证通过后返回 token 对和用户信息。
+func (s *service) Login(email, password string) (*LoginResult, error) {
 	user, err := s.repo.FindByEmail(email)
 	if err != nil {
 		return nil, ErrInvalidCreds
@@ -76,7 +92,22 @@ func (s *service) Login(email, password string) (*TokenPair, error) {
 		return nil, ErrInvalidCreds
 	}
 
-	return s.generateTokenPair(user)
+	tp, err := s.generateTokenPair(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResult{
+		AccessToken:  tp.AccessToken,
+		RefreshToken: tp.RefreshToken,
+		ExpiresIn:    tp.ExpiresIn,
+		User: LoginUser{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Role:     user.Role,
+		},
+	}, nil
 }
 
 // ValidateToken 验证 JWT Token 并返回 Claims。

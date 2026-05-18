@@ -1,37 +1,41 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { AuthProvider } from "@/context/AuthContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
 import { Component as LoginPage } from "@/components/ui/animated-characters-login-page"
 import { Component as RegisterPage } from "@/components/ui/animated-characters-register-page"
+import DashboardLayout from "@/layouts/DashboardLayout"
+import DashboardPage from "@/pages/DashboardPage"
+import ProjectDetailPage from "@/pages/ProjectDetailPage"
 
-// App root — sets up client-side routing for the SPA
+// App root — wraps entire app with AuthProvider and sets up client-side routing
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Login page with animated cartoon characters */}
-        <Route path="/login" element={<LoginPage />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public routes — login and register, no auth required */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        {/* Register page — characters unlock as fields are filled */}
-        <Route path="/register" element={<RegisterPage />} />
+          {/* Protected routes — require authentication, share dashboard layout */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          </Route>
 
-        {/* Default redirect — send all users to login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-        {/* Dashboard placeholder — will be built in next phase */}
-        <Route
-          path="/dashboard"
-          element={
-            <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold">Dashboard</h1>
-                <p className="text-muted-foreground mt-2">Coming soon...</p>
-              </div>
-            </div>
-          }
-        />
-
-        {/* 404 fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+          {/* 404 fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

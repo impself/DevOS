@@ -1,0 +1,79 @@
+import { Outlet } from "react-router-dom"
+import { useAuth } from "@/context/AuthContext"
+import { LogOut, FolderKanban, Settings, Sparkles } from "lucide-react"
+
+// DashboardLayout — sidebar + top bar shell for all authenticated pages
+export default function DashboardLayout() {
+  const { user, logout } = useAuth()
+
+  return (
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar */}
+      <aside className="hidden lg:flex w-60 flex-col border-r border-border bg-card">
+        {/* Brand */}
+        <div className="flex items-center gap-2 px-5 h-14 border-b border-border">
+          <div className="size-7 rounded-md bg-primary/10 flex items-center justify-center">
+            <Sparkles className="size-3.5 text-primary" />
+          </div>
+          <span className="font-semibold text-sm">DevOS</span>
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex-1 py-4 px-3 space-y-1">
+          <a
+            href="/dashboard"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium bg-accent text-accent-foreground"
+          >
+            <FolderKanban className="size-4" />
+            Projects
+          </a>
+          <button
+            type="button"
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground w-full transition-colors cursor-pointer"
+          >
+            <Settings className="size-4" />
+            Settings
+          </button>
+        </nav>
+
+        {/* User section at bottom */}
+        <div className="border-t border-border p-3">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+              {user?.username?.charAt(0).toUpperCase() || "U"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user?.username || "User"}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Logout"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Top bar for mobile — shows brand + logout */}
+        <header className="lg:hidden flex items-center justify-between h-14 px-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <span className="font-semibold text-sm">DevOS</span>
+          </div>
+          <button type="button" onClick={logout} className="text-muted-foreground hover:text-foreground cursor-pointer">
+            <LogOut className="size-4" />
+          </button>
+        </header>
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  )
+}
