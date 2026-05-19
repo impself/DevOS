@@ -30,10 +30,10 @@ type updateProjectReq struct {
 	Description string `json:"description" binding:"max=1000"`
 }
 
-// addMemberReq 添加项目成员的请求体。
+// addMemberReq 添加项目成员的请求体，通过 username 而非 UUID 标识用户。
 type addMemberReq struct {
-	UserID string `json:"user_id" binding:"required"`
-	Role   string `json:"role" binding:"required,oneof=owner admin developer viewer"`
+	Username string `json:"username" binding:"required"`
+	Role     string `json:"role" binding:"required,oneof=owner admin developer viewer"`
 }
 
 // Create 处理 POST /projects，创建一个新项目。
@@ -48,6 +48,10 @@ func (h *Handler) Create(c *gin.Context) {
 	userID := c.GetString("userID")
 	p, err := h.svc.Create(req.Name, req.Description, userID)
 	if err != nil {
+		if errors.Is(err, ErrNoPermission) {
+			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "only admin can create projects"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "create project failed"})
 		return
 	}
@@ -144,10 +148,12 @@ func (h *Handler) AddMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.AddMember(projectID, userID, req.UserID, req.Role); err != nil {
+	if err := h.svc.AddMember(projectID, userID, req.Username, req.Role); err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+		case errors.Is(err, ErrUserNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"code": "USER_NOT_FOUND", "message": "user not found"})
 		case errors.Is(err, ErrAlreadyMember):
 			c.JSON(http.StatusConflict, gin.H{"code": "ALREADY_MEMBER", "message": "user is already a member"})
 		default:

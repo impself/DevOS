@@ -17,7 +17,9 @@ export interface Member {
   project_id: string
   user_id: string
   role: string
-  created_at: string
+  username: string
+  email: string
+  joined_at: string
 }
 
 // Paginated project list response
@@ -61,8 +63,8 @@ export async function deleteProject(id: string) {
 }
 
 // POST /projects/:id/members — add a member to project
-export async function addMember(projectId: string, userId: string, role: string) {
-  const { data } = await api.post(`/projects/${projectId}/members`, { user_id: userId, role })
+export async function addMember(projectId: string, username: string, role: string) {
+  const { data } = await api.post(`/projects/${projectId}/members`, { username, role })
   return data
 }
 

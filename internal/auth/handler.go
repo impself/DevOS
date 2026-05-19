@@ -60,6 +60,13 @@ func (h *Handler) Register(c *gin.Context) {
 			})
 			return
 		}
+		if errors.Is(err, ErrUsernameExists) {
+			c.JSON(http.StatusConflict, gin.H{
+				"code":    "USERNAME_EXISTS",
+				"message": "username already taken",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    "INTERNAL_ERROR",
 			"message": "failed to create user",

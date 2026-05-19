@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "@/context/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
+import GuestRoute from "@/components/GuestRoute"
 import { Component as LoginPage } from "@/components/ui/animated-characters-login-page"
 import { Component as RegisterPage } from "@/components/ui/animated-characters-register-page"
 import DashboardLayout from "@/layouts/DashboardLayout"
@@ -13,9 +14,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public routes — login and register, no auth required */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          {/* Public routes — only accessible when NOT authenticated */}
+          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+          <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
 
           {/* Protected routes — require authentication, share dashboard layout */}
           <Route
@@ -27,6 +28,7 @@ export default function App() {
           >
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/settings" element={<div className="p-8 text-muted-foreground">Settings — coming soon</div>} />
           </Route>
 
           {/* Default redirect */}

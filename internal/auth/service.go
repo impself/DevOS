@@ -12,8 +12,9 @@ import (
 
 // 业务错误定义，handler 层通过 errors.Is 判断返回不同状态码。
 var (
-	ErrUserExists   = errors.New("user already exists")
-	ErrInvalidCreds = errors.New("invalid email or password")
+	ErrUserExists       = errors.New("user already exists")
+	ErrUsernameExists   = errors.New("username already taken")
+	ErrInvalidCreds     = errors.New("invalid email or password")
 )
 
 // Service 认证业务接口。
@@ -57,11 +58,15 @@ func NewService(repo Repository, jwtCfg config.JWTConfig) Service {
 	return &service{repo: repo, jwtCfg: jwtCfg}
 }
 
-// Register 注册新用户。检查邮箱唯一性，密码用 bcrypt 加密后存储。
+// Register 注册新用户。检查邮箱和用户名唯一性，密码用 bcrypt 加密后存储。
 func (s *service) Register(email, username, password string) (*User, error) {
 	existing, _ := s.repo.FindByEmail(email)
 	if existing != nil {
 		return nil, ErrUserExists
+	}
+	// 用户名唯一性校验，不允许重名
+	if u, _ := s.repo.FindByUsername(username); u != nil {
+		return nil, ErrUsernameExists
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -73,6 +78,7 @@ func (s *service) Register(email, username, password string) (*User, error) {
 		Email:    email,
 		Username: username,
 		Password: string(hash),
+		Role:     "user",
 	}
 
 	if err := s.repo.Create(user); err != nil {

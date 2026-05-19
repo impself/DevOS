@@ -32,6 +32,10 @@ migrate-up:
 migrate-down:
 	migrate -path migrations -database "postgres://devos:devos@localhost:5432/devos?sslmode=disable" down 1
 
+# 创建系统管理员（种子数据）
+seed:
+	go run cmd/seed/main.go
+
 # 清理
 clean:
 	rm -rf bin/

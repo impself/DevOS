@@ -12,6 +12,7 @@ var (
 	ErrProjectNotFound = errors.New("project not found")
 	ErrNoPermission    = errors.New("no permission")
 	ErrAlreadyMember   = errors.New("already a member")
+	ErrUserNotFound    = errors.New("user not found")
 )
 
 // Service 定义项目管理的业务逻辑接口。
@@ -28,7 +29,7 @@ type Service interface {
 	Delete(id, userID string) error
 
 	// AddMember 添加项目成员，要求操作者是 owner 或 admin。
-	AddMember(projectID, operatorID, userID, role string) error
+	AddMember(projectID, operatorID, username, role string) error
 	// RemoveMember 移除项目成员，要求操作者是 owner 或 admin。
 	RemoveMember(projectID, operatorID, userID string) error
 	// ListMembers 查询项目成员列表，要求请求用户是项目成员或 owner。
@@ -47,6 +48,10 @@ func NewService(repo Repository, authRepo auth.Repository) Service {
 }
 
 func (s *service) Create(name, description, ownerID string) (*Project, error) {
+	// 仅系统管理员可以创建项目
+	if !s.isSystemAdmin(ownerID) {
+		return nil, ErrNoPermission
+	}
 	project := &Project{
 		Name:        name,
 		Description: description,
@@ -73,6 +78,10 @@ func (s *service) GetByID(id, userID string) (*Project, error) {
 	if err != nil {
 		return nil, ErrProjectNotFound
 	}
+	// 系统管理员可查看任意项目
+	if s.isSystemAdmin(userID) {
+		return p, nil
+	}
 	// owner 直接放行，否则需要是项目成员
 	if p.OwnerID != userID {
 		if _, err := s.repo.FindMember(id, userID); err != nil {
@@ -83,7 +92,6 @@ func (s *service) GetByID(id, userID string) (*Project, error) {
 }
 
 func (s *service) List(userID string, page, pageSize int) ([]Project, int64, error) {
-	// 防御性参数校验，避免非法分页值
 	if page < 1 {
 		page = 1
 	}
@@ -91,6 +99,10 @@ func (s *service) List(userID string, page, pageSize int) ([]Project, int64, err
 		pageSize = 20
 	}
 	offset := (page - 1) * pageSize
+	// 系统管理员可以看到所有项目
+	if s.isSystemAdmin(userID) {
+		return s.repo.ListAll(offset, pageSize)
+	}
 	return s.repo.ListByOwner(userID, offset, pageSize)
 }
 
@@ -111,18 +123,17 @@ func (s *service) Update(id, userID, name, description string) (*Project, error)
 }
 
 func (s *service) Delete(id, userID string) error {
-	p, err := s.repo.FindByID(id)
-	if err != nil {
+	if _, err := s.repo.FindByID(id); err != nil {
 		return ErrProjectNotFound
 	}
-	// 只有项目 owner 才能删除项目
-	if p.OwnerID != userID {
+	// 仅系统管理员可以删除项目
+	if !s.isSystemAdmin(userID) {
 		return ErrNoPermission
 	}
 	return s.repo.Delete(id)
 }
 
-func (s *service) AddMember(projectID, operatorID, userID, role string) error {
+func (s *service) AddMember(projectID, operatorID, username, role string) error {
 	p, err := s.repo.FindByID(projectID)
 	if err != nil {
 		return ErrProjectNotFound
@@ -130,13 +141,18 @@ func (s *service) AddMember(projectID, operatorID, userID, role string) error {
 	if !s.canManageMembers(p, operatorID) {
 		return ErrNoPermission
 	}
+	// 通过 username 查找用户 ID
+	user, err := s.authRepo.FindByUsername(username)
+	if err != nil {
+		return ErrUserNotFound
+	}
 	// 检查目标用户是否已经是成员，避免重复添加
-	if _, err := s.repo.FindMember(projectID, userID); err == nil {
+	if _, err := s.repo.FindMember(projectID, user.ID); err == nil {
 		return ErrAlreadyMember
 	}
 	return s.repo.AddMember(&Member{
 		ProjectID: projectID,
-		UserID:    userID,
+		UserID:    user.ID,
 		Role:      role,
 	})
 }
@@ -153,6 +169,10 @@ func (s *service) RemoveMember(projectID, operatorID, userID string) error {
 }
 
 func (s *service) ListMembers(projectID, userID string) ([]Member, error) {
+	// 系统管理员可查看任意项目的成员列表
+	if s.isSystemAdmin(userID) {
+		return s.repo.ListMembers(projectID)
+	}
 	// 用户必须是项目成员才能查看成员列表；如果是 owner 也可查看
 	if _, err := s.repo.FindMember(projectID, userID); err != nil {
 		if p, e := s.repo.FindByID(projectID); e != nil || p.OwnerID != userID {
@@ -162,26 +182,18 @@ func (s *service) ListMembers(projectID, userID string) ([]Member, error) {
 	return s.repo.ListMembers(projectID)
 }
 
-// canEdit 判断用户是否有权编辑项目信息，owner 和 admin 可编辑。
-func (s *service) canEdit(p *Project, userID string) bool {
-	if p.OwnerID == userID {
-		return true
-	}
-	m, err := s.repo.FindMember(p.ID, userID)
-	if err != nil {
-		return false
-	}
-	return m.Role == "owner" || m.Role == "admin"
+// isSystemAdmin 判断用户是否为系统管理员，系统管理员可以绕过所有项目级权限检查。
+func (s *service) isSystemAdmin(userID string) bool {
+	ok, _ := s.authRepo.IsAdmin(userID)
+	return ok
 }
 
-// canManageMembers 判断用户是否有权管理项目成员，owner 和 admin 可管理。
-func (s *service) canManageMembers(p *Project, userID string) bool {
-	if p.OwnerID == userID {
-		return true
-	}
-	m, err := s.repo.FindMember(p.ID, userID)
-	if err != nil {
-		return false
-	}
-	return m.Role == "owner" || m.Role == "admin"
+// canEdit 判断用户是否有权编辑项目信息，仅系统管理员可编辑。
+func (s *service) canEdit(_ *Project, userID string) bool {
+	return s.isSystemAdmin(userID)
+}
+
+// canManageMembers 判断用户是否有权管理项目成员，仅系统管理员可管理。
+func (s *service) canManageMembers(_ *Project, userID string) bool {
+	return s.isSystemAdmin(userID)
 }

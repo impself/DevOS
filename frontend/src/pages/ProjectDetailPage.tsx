@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, UserPlus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useAuth } from "@/context/AuthContext"
 import {
   getProject, updateProject, listMembers, addMember, removeMember,
   type Project, type Member,
@@ -13,10 +14,16 @@ import {
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
+
+  // 权限计算：仅系统管理员有写权限，普通用户只读
+  const isAdmin = user?.role === "admin"
+  const canEdit = isAdmin
+  const canManageMembers = isAdmin
 
   // Edit mode state
   const [editing, setEditing] = useState(false)
@@ -26,7 +33,7 @@ export default function ProjectDetailPage() {
 
   // Add member state
   const [showAddMember, setShowAddMember] = useState(false)
-  const [memberUserId, setMemberUserId] = useState("")
+  const [memberUsername, setMemberUsername] = useState("")
   const [memberRole, setMemberRole] = useState("developer")
   const [addingMember, setAddingMember] = useState(false)
 
@@ -75,10 +82,10 @@ export default function ProjectDetailPage() {
     if (!id) return
     setAddingMember(true)
     try {
-      const res = await addMember(id, memberUserId, memberRole)
+      const res = await addMember(id, memberUsername, memberRole)
       if (res.code === 0) {
         setShowAddMember(false)
-        setMemberUserId("")
+        setMemberUsername("")
         setMemberRole("developer")
         fetchData()
       }
@@ -150,10 +157,12 @@ export default function ProjectDetailPage() {
                 <h1 className="text-xl font-bold">{project.name}</h1>
                 <p className="text-muted-foreground text-sm mt-1">{project.description || "No description"}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="cursor-pointer">
-                <Pencil className="size-3.5 mr-1" />
-                Edit
-              </Button>
+              {canEdit && (
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="cursor-pointer">
+                  <Pencil className="size-3.5 mr-1" />
+                  Edit
+                </Button>
+              )}
             </div>
             <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
               <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
@@ -167,10 +176,12 @@ export default function ProjectDetailPage() {
       <div className="border border-border rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Members ({members.length})</h2>
-          <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)} className="cursor-pointer">
-            <UserPlus className="size-3.5 mr-1" />
-            Add
-          </Button>
+          {canManageMembers && (
+            <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)} className="cursor-pointer">
+              <UserPlus className="size-3.5 mr-1" />
+              Add
+            </Button>
+          )}
         </div>
 
         {/* Add member modal */}
@@ -178,12 +189,12 @@ export default function ProjectDetailPage() {
           <div className="mb-4 p-4 border border-border rounded-md bg-muted/30">
             <form onSubmit={handleAddMember} className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="member-uid" className="text-xs">User ID</Label>
+                <Label htmlFor="member-uid" className="text-xs">Username</Label>
                 <Input
                   id="member-uid"
-                  value={memberUserId}
-                  onChange={(e) => setMemberUserId(e.target.value)}
-                  placeholder="Paste user UUID"
+                  value={memberUsername}
+                  onChange={(e) => setMemberUsername(e.target.value)}
+                  placeholder="Enter username"
                   required
                   className="h-9 text-sm"
                 />
@@ -223,14 +234,14 @@ export default function ProjectDetailPage() {
               <div key={m.id} className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
                   <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                    {m.user_id.slice(0, 2).toUpperCase()}
+                    {(m.username || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{m.user_id.slice(0, 8)}...</p>
-                    <p className="text-xs text-muted-foreground capitalize">{m.role}</p>
+                    <p className="text-sm font-medium">{m.username}</p>
+                    <p className="text-xs text-muted-foreground">{m.role} &middot; {m.email}</p>
                   </div>
                 </div>
-                {m.role !== "owner" && (
+                {canManageMembers && m.role !== "owner" && (
                   <button
                     type="button"
                     onClick={() => handleRemoveMember(m.user_id)}

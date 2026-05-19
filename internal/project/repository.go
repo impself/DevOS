@@ -16,6 +16,8 @@ type Repository interface {
 	// ListByOwner 查询用户拥有或参与的项目，支持分页。
 	// 返回项目列表和总数，按创建时间倒序排列。
 	ListByOwner(ownerID string, offset, limit int) ([]Project, int64, error)
+	// ListAll 查询所有项目，仅限系统管理员使用。
+	ListAll(offset, limit int) ([]Project, int64, error)
 	// Update 保存项目字段的修改。
 	Update(project *Project) error
 	// Delete 软删除指定 ID 的项目（利用 gorm.DeletedAt）。
@@ -69,6 +71,19 @@ func (r *repository) ListByOwner(ownerID string, offset, limit int) ([]Project, 
 	return projects, total, nil
 }
 
+// ListAll 查询所有非软删除的项目，仅系统管理员调用。
+func (r *repository) ListAll(offset, limit int) ([]Project, int64, error) {
+	var projects []Project
+	var total int64
+	if err := r.db.Model(&Project{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := r.db.Offset(offset).Limit(limit).Order("created_at DESC").Find(&projects).Error; err != nil {
+		return nil, 0, err
+	}
+	return projects, total, nil
+}
+
 func (r *repository) Update(project *Project) error {
 	return r.db.Save(project).Error
 }
@@ -87,7 +102,12 @@ func (r *repository) RemoveMember(projectID, userID string) error {
 
 func (r *repository) ListMembers(projectID string) ([]Member, error) {
 	var members []Member
-	if err := r.db.Where("project_id = ?", projectID).Find(&members).Error; err != nil {
+	// JOIN users 表拉取 username 和 email，前端直接展示无需再查用户
+	if err := r.db.Table("project_members").
+		Select("project_members.*, users.username, users.email").
+		Joins("JOIN users ON users.id = project_members.user_id").
+		Where("project_members.project_id = ? AND project_members.deleted_at IS NULL", projectID).
+		Find(&members).Error; err != nil {
 		return nil, err
 	}
 	return members, nil
@@ -95,7 +115,11 @@ func (r *repository) ListMembers(projectID string) ([]Member, error) {
 
 func (r *repository) FindMember(projectID, userID string) (*Member, error) {
 	var m Member
-	if err := r.db.Where("project_id = ? AND user_id = ?", projectID, userID).First(&m).Error; err != nil {
+	if err := r.db.Table("project_members").
+		Select("project_members.*, users.username, users.email").
+		Joins("JOIN users ON users.id = project_members.user_id").
+		Where("project_members.project_id = ? AND project_members.user_id = ? AND project_members.deleted_at IS NULL", projectID, userID).
+		First(&m).Error; err != nil {
 		return nil, fmt.Errorf("find member: %w", err)
 	}
 	return &m, nil

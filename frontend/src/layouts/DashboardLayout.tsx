@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom"
+import { Link, Outlet } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { LogOut, FolderKanban, Settings, Sparkles } from "lucide-react"
 
@@ -20,20 +20,20 @@ export default function DashboardLayout() {
 
         {/* Nav items */}
         <nav className="flex-1 py-4 px-3 space-y-1">
-          <a
-            href="/dashboard"
+          <Link
+            to="/dashboard"
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium bg-accent text-accent-foreground"
           >
             <FolderKanban className="size-4" />
             Projects
-          </a>
-          <button
-            type="button"
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground w-full transition-colors cursor-pointer"
+          </Link>
+          <span
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground/50"
+            title="Coming soon"
           >
             <Settings className="size-4" />
             Settings
-          </button>
+          </span>
         </nav>
 
         {/* User section at bottom */}
@@ -43,7 +43,14 @@ export default function DashboardLayout() {
               {user?.username?.charAt(0).toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.username || "User"}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium truncate">{user?.username || "User"}</p>
+                {user?.role === "admin" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold">
+                    ADMIN
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
             <button

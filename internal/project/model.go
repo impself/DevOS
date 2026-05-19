@@ -27,11 +27,14 @@ func (Project) TableName() string { return "projects" }
 
 // Member 表示项目与用户的关联关系，即项目成员。
 // 每个成员拥有一个角色：owner / admin / developer / viewer。
+// Username 和 Email 通过 JOIN users 表填充，不持久化到 project_members 表。
 type Member struct {
 	ID        string         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ProjectID string         `gorm:"type:uuid;not null;index" json:"project_id"`
 	UserID    string         `gorm:"type:uuid;not null;index" json:"user_id"`
 	Role      string         `gorm:"size:20;not null;default:'developer'" json:"role"` // owner / admin / developer / viewer
+	Username  string         `gorm:"-" json:"username"`
+	Email     string         `gorm:"-" json:"email"`
 	JoinedAt  time.Time      `json:"joined_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }

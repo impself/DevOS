@@ -15,6 +15,7 @@ interface AuthContextValue {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, username: string, password: string) => Promise<void>
   logout: () => void
@@ -26,9 +27,10 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  // Restore session from localStorage on mount
+  // Restore session from localStorage on mount — runs once before rendering auth gating
   useEffect(() => {
     const savedToken = localStorage.getItem("access_token")
     const savedUser = localStorage.getItem("user")
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("user")
       }
     }
+    setLoading(false)
   }, [])
 
   // Login — call API, persist token + user, navigate to dashboard
@@ -86,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         token,
         isAuthenticated: !!token && !!user,
+        loading,
         login: handleLogin,
         register: handleRegister,
         logout: handleLogout,

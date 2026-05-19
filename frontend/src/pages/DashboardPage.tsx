@@ -4,10 +4,13 @@ import { Plus, Trash2, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useAuth } from "@/context/AuthContext"
 import { listProjects, createProject, deleteProject, type Project } from "@/api/project"
 
 // DashboardPage — shows project list with create/delete actions
 export default function DashboardPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === "admin"
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [total, setTotal] = useState(0)
@@ -74,10 +77,12 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground text-sm mt-1">{total} project{total !== 1 ? "s" : ""}</p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="cursor-pointer">
-          <Plus className="size-4 mr-1" />
-          New Project
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setShowCreate(true)} className="cursor-pointer">
+            <Plus className="size-4 mr-1" />
+            New Project
+          </Button>
+        )}
       </div>
 
       {/* Create project modal */}
@@ -150,14 +155,16 @@ export default function DashboardPage() {
                 >
                   <ExternalLink className="size-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                  className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
-                  title="Delete"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
+                    title="Delete"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
