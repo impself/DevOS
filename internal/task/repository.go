@@ -2,6 +2,7 @@ package task
 
 import (
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -44,12 +45,14 @@ func (r *repository) Create(task *Task) error {
 
 func (r *repository) FindByID(id string) (*Task, error) {
 	var t Task
-	if err := r.db.Table("tasks").
-		Select("tasks.*, ua.username as assignee_name, ua.email as assignee_email, uc.username as creator_name").
-		Joins("LEFT JOIN users ua ON ua.id = tasks.assignee_id").
-		Joins("LEFT JOIN users uc ON uc.id = tasks.created_by").
-		Where("tasks.id = ? AND tasks.deleted_at IS NULL", id).
-		First(&t).Error; err != nil {
+	err := r.db.Raw(`
+		SELECT t.*, ua.username AS assignee_name, ua.email AS assignee_email, uc.username AS creator_name
+		FROM tasks t
+		LEFT JOIN users ua ON ua.id = t.assignee_id
+		LEFT JOIN users uc ON uc.id = t.created_by
+		WHERE t.id = ? AND t.deleted_at IS NULL
+	`, id).Scan(&t).Error
+	if err != nil {
 		return nil, fmt.Errorf("find task: %w", err)
 	}
 	return &t, nil
@@ -64,39 +67,24 @@ func (r *repository) Delete(id string) error {
 }
 
 func (r *repository) List(projectID string, f ListFilters) ([]Task, int64, error) {
-	query := r.db.Table("tasks").
-		Select("tasks.*, ua.username as assignee_name, ua.email as assignee_email, uc.username as creator_name").
-		Joins("LEFT JOIN users ua ON ua.id = tasks.assignee_id").
-		Joins("LEFT JOIN users uc ON uc.id = tasks.created_by").
-		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL", projectID)
+	// base SQL parts
+	baseSelect := `
+		SELECT t.*, ua.username AS assignee_name, ua.email AS assignee_email, uc.username AS creator_name
+		FROM tasks t
+		LEFT JOIN users ua ON ua.id = t.assignee_id
+		LEFT JOIN users uc ON uc.id = t.created_by
+		WHERE t.project_id = ? AND t.deleted_at IS NULL`
+	baseArgs := []interface{}{projectID}
 
-	if f.Status != "" {
-		query = query.Where("tasks.status = ?", f.Status)
-	}
-	if f.Priority != "" {
-		query = query.Where("tasks.priority = ?", f.Priority)
-	}
-	if f.Type != "" {
-		query = query.Where("tasks.type = ?", f.Type)
-	}
-	if f.Assignee != "" {
-		query = query.Where("tasks.assignee_id = ?", f.Assignee)
-	}
-	if f.SprintID != "" {
-		query = query.Where("tasks.sprint_id = ?", f.SprintID)
-	}
-	if f.ParentID == "none" {
-		query = query.Where("tasks.parent_id IS NULL")
-	} else if f.ParentID != "" {
-		query = query.Where("tasks.parent_id = ?", f.ParentID)
-	}
-	if f.Search != "" {
-		like := "%" + f.Search + "%"
-		query = query.Where("tasks.title ILIKE ? OR tasks.description ILIKE ?", like, like)
-	}
+	extraWhere, extraArgs := buildWhere(f)
+	sql := baseSelect + extraWhere
 
 	var total int64
-	if err := query.Count(&total).Error; err != nil {
+	countSQL := `SELECT COUNT(*) FROM tasks t WHERE t.project_id = ? AND t.deleted_at IS NULL` + strings.Replace(extraWhere, baseSelect, "", 1)
+	// Rebuild count properly
+	countSQL = "SELECT COUNT(*) FROM tasks t WHERE t.project_id = ? AND t.deleted_at IS NULL" + extraWhere
+	allArgs := append(baseArgs, extraArgs...)
+	if err := r.db.Raw(countSQL, allArgs...).Scan(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -108,13 +96,56 @@ func (r *repository) List(projectID string, f ListFilters) ([]Task, int64, error
 	}
 	offset := (f.Page - 1) * f.PageSize
 
+	sql += " ORDER BY t.sort_order ASC, t.created_at DESC LIMIT ? OFFSET ?"
+	allArgs = append(allArgs, f.PageSize, offset)
+
 	var tasks []Task
-	if err := query.Order("tasks.sort_order ASC, tasks.created_at DESC").
-		Limit(f.PageSize).Offset(offset).
-		Find(&tasks).Error; err != nil {
+	if err := r.db.Raw(sql, allArgs...).Scan(&tasks).Error; err != nil {
 		return nil, 0, err
 	}
 	return tasks, total, nil
+}
+
+func buildWhere(f ListFilters) (string, []interface{}) {
+	var clauses []string
+	var args []interface{}
+
+	if f.Status != "" {
+		clauses = append(clauses, "t.status = ?")
+		args = append(args, f.Status)
+	}
+	if f.Priority != "" {
+		clauses = append(clauses, "t.priority = ?")
+		args = append(args, f.Priority)
+	}
+	if f.Type != "" {
+		clauses = append(clauses, "t.type = ?")
+		args = append(args, f.Type)
+	}
+	if f.Assignee != "" {
+		clauses = append(clauses, "t.assignee_id = ?")
+		args = append(args, f.Assignee)
+	}
+	if f.SprintID != "" {
+		clauses = append(clauses, "t.sprint_id = ?")
+		args = append(args, f.SprintID)
+	}
+	if f.ParentID == "none" {
+		clauses = append(clauses, "t.parent_id IS NULL")
+	} else if f.ParentID != "" {
+		clauses = append(clauses, "t.parent_id = ?")
+		args = append(args, f.ParentID)
+	}
+	if f.Search != "" {
+		like := "%" + f.Search + "%"
+		clauses = append(clauses, "(t.title ILIKE ? OR t.description ILIKE ?)")
+		args = append(args, like, like)
+	}
+
+	if len(clauses) == 0 {
+		return "", nil
+	}
+	return " AND " + strings.Join(clauses, " AND "), args
 }
 
 func (r *repository) UpdateSortOrder(id string, sortOrder float64) error {

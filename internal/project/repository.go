@@ -104,12 +104,13 @@ func (r *repository) RemoveMember(projectID, userID string) error {
 
 func (r *repository) ListMembers(projectID string) ([]Member, error) {
 	var members []Member
-	// JOIN users 表拉取 username / email / nickname / avatar，前端直接展示无需再查用户
-	if err := r.db.Table("project_members").
-		Select("project_members.*, users.username, users.email, users.nickname, users.avatar").
-		Joins("JOIN users ON users.id = project_members.user_id").
-		Where("project_members.project_id = ? AND project_members.deleted_at IS NULL", projectID).
-		Find(&members).Error; err != nil {
+	err := r.db.Raw(`
+		SELECT pm.*, u.username, u.email, u.nickname, u.avatar
+		FROM project_members pm
+		JOIN users u ON u.id = pm.user_id
+		WHERE pm.project_id = ? AND pm.deleted_at IS NULL
+	`, projectID).Scan(&members).Error
+	if err != nil {
 		return nil, err
 	}
 	return members, nil
@@ -117,11 +118,13 @@ func (r *repository) ListMembers(projectID string) ([]Member, error) {
 
 func (r *repository) FindMember(projectID, userID string) (*Member, error) {
 	var m Member
-	if err := r.db.Table("project_members").
-		Select("project_members.*, users.username, users.email, users.nickname, users.avatar").
-		Joins("JOIN users ON users.id = project_members.user_id").
-		Where("project_members.project_id = ? AND project_members.user_id = ? AND project_members.deleted_at IS NULL", projectID, userID).
-		First(&m).Error; err != nil {
+	err := r.db.Raw(`
+		SELECT pm.*, u.username, u.email, u.nickname, u.avatar
+		FROM project_members pm
+		JOIN users u ON u.id = pm.user_id
+		WHERE pm.project_id = ? AND pm.user_id = ? AND pm.deleted_at IS NULL
+	`, projectID, userID).Scan(&m).Error
+	if err != nil {
 		return nil, fmt.Errorf("find member: %w", err)
 	}
 	return &m, nil

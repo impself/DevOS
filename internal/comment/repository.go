@@ -24,12 +24,14 @@ func (r *repository) Create(comment *Comment) error {
 
 func (r *repository) List(taskID string) ([]Comment, error) {
 	var comments []Comment
-	if err := r.db.Table("comments").
-		Select("comments.*, users.username, users.nickname, users.avatar").
-		Joins("JOIN users ON users.id = comments.user_id").
-		Where("comments.task_id = ? AND comments.deleted_at IS NULL", taskID).
-		Order("comments.created_at ASC").
-		Find(&comments).Error; err != nil {
+	err := r.db.Raw(`
+		SELECT c.*, u.username, u.nickname, u.avatar
+		FROM comments c
+		JOIN users u ON u.id = c.user_id
+		WHERE c.task_id = ? AND c.deleted_at IS NULL
+		ORDER BY c.created_at ASC
+	`, taskID).Scan(&comments).Error
+	if err != nil {
 		return nil, err
 	}
 	return comments, nil
