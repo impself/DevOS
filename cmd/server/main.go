@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/impself/DevOS/internal/auth"
 	"github.com/impself/DevOS/internal/project"
+	"github.com/impself/DevOS/internal/task"
 	"github.com/impself/DevOS/pkg/config"
 	"github.com/impself/DevOS/pkg/database"
 	"github.com/impself/DevOS/pkg/logger"
@@ -41,7 +42,7 @@ func main() {
 	}
 
 	// 自动迁移数据库表结构，开发阶段使用，生产环境应改用 migration 工具
-	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}); err != nil {
 		logger.L.Fatalf("auto migrate: %v", err)
 	}
 
@@ -53,6 +54,10 @@ func main() {
 	projectRepo := project.NewRepository(database.DB)
 	projectSvc := project.NewService(projectRepo, authRepo)
 	projectHandler := project.NewHandler(projectSvc)
+
+	taskRepo := task.NewRepository(database.DB)
+	taskSvc := task.NewService(taskRepo, authRepo)
+	taskHandler := task.NewHandler(taskSvc)
 
 	// Gin 引擎初始化
 	if cfg.Server.Mode == "release" {
@@ -85,6 +90,9 @@ func main() {
 		{
 			authed.GET("/auth/me", authHandler.Me)
 
+			// 用户列表，供成员选择器使用
+			authed.GET("/users", authHandler.ListUsers)
+
 			// 项目 CRUD + 成员管理
 			p := authed.Group("/projects")
 			{
@@ -95,8 +103,16 @@ func main() {
 				p.DELETE("/:id", projectHandler.Delete)
 
 				p.POST("/:id/members", projectHandler.AddMember)
+				p.PUT("/:id/members/:memberID/role", projectHandler.UpdateMemberRole)
 				p.DELETE("/:id/members/:memberID", projectHandler.RemoveMember)
 				p.GET("/:id/members", projectHandler.ListMembers)
+
+				// 任务 CRUD
+				p.POST("/:id/tasks", taskHandler.Create)
+				p.GET("/:id/tasks", taskHandler.List)
+				p.GET("/:id/tasks/:taskID", taskHandler.Get)
+				p.PUT("/:id/tasks/:taskID", taskHandler.Update)
+				p.DELETE("/:id/tasks/:taskID", taskHandler.Delete)
 			}
 		}
 	}

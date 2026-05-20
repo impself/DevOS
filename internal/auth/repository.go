@@ -14,6 +14,8 @@ type Repository interface {
 	FindByID(id string) (*User, error)
 	// IsAdmin 判断用户是否为系统管理员，用于全局权限检查。
 	IsAdmin(userID string) (bool, error)
+	// ListAll 返回所有用户，按 username 升序排列，供成员选择器使用。
+	ListAll() ([]User, error)
 }
 
 type repository struct {
@@ -53,6 +55,15 @@ func (r *repository) IsAdmin(userID string) (bool, error) {
 		return false, fmt.Errorf("is admin: %w", err)
 	}
 	return user.Role == "admin", nil
+}
+
+// ListAll 返回所有用户，按 username 升序排列。
+func (r *repository) ListAll() ([]User, error) {
+	var users []User
+	if err := r.db.Order("username ASC").Find(&users).Error; err != nil {
+		return nil, fmt.Errorf("list all users: %w", err)
+	}
+	return users, nil
 }
 
 func (r *repository) FindByID(id string) (*User, error) {

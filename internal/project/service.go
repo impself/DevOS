@@ -34,6 +34,8 @@ type Service interface {
 	RemoveMember(projectID, operatorID, userID string) error
 	// ListMembers 查询项目成员列表，要求请求用户是项目成员或 owner。
 	ListMembers(projectID, userID string) ([]Member, error)
+	// UpdateMemberRole 修改项目成员角色，要求操作者是系统管理员。
+	UpdateMemberRole(projectID, operatorID, userID, role string) error
 }
 
 // service 是 Service 接口的实现，持有数据仓储依赖。
@@ -180,6 +182,25 @@ func (s *service) ListMembers(projectID, userID string) ([]Member, error) {
 		}
 	}
 	return s.repo.ListMembers(projectID)
+}
+
+// UpdateMemberRole 修改项目成员角色，仅系统管理员可操作。owner 角色不可被修改。
+func (s *service) UpdateMemberRole(projectID, operatorID, userID, role string) error {
+	if _, err := s.repo.FindByID(projectID); err != nil {
+		return ErrProjectNotFound
+	}
+	if !s.isSystemAdmin(operatorID) {
+		return ErrNoPermission
+	}
+	// 不允许修改 owner 角色
+	m, err := s.repo.FindMember(projectID, userID)
+	if err != nil {
+		return ErrNoPermission
+	}
+	if m.Role == "owner" {
+		return ErrNoPermission
+	}
+	return s.repo.UpdateMemberRole(projectID, userID, role)
 }
 
 // isSystemAdmin 判断用户是否为系统管理员，系统管理员可以绕过所有项目级权限检查。

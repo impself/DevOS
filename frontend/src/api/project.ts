@@ -19,6 +19,8 @@ export interface Member {
   role: string
   username: string
   email: string
+  nickname: string
+  avatar: string
   joined_at: string
 }
 
@@ -78,4 +80,26 @@ export async function removeMember(projectId: string, memberId: string) {
 export async function listMembers(projectId: string) {
   const { data } = await api.get(`/projects/${projectId}/members`)
   return data
+}
+
+// PUT /projects/:id/members/:memberID/role — update a member's role
+export async function updateMemberRole(projectId: string, userId: string, role: string) {
+  const { data } = await api.put(`/projects/${projectId}/members/${userId}/role`, { role })
+  return data
+}
+
+// User data shape returned by /users endpoint
+export interface UserItem {
+  id: string
+  email: string
+  username: string
+  nickname: string
+  avatar: string
+  role: string
+}
+
+// GET /users — list all users for member picker
+export async function listUsers() {
+  const { data } = await api.get("/users")
+  return data as { code: number; message: string; data: UserItem[] }
 }

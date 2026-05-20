@@ -23,6 +23,8 @@ type Service interface {
 	Login(email, password string) (*LoginResult, error)
 	ValidateToken(tokenStr string) (*middleware.Claims, error)
 	GetByID(id string) (*User, error)
+	// ListUsers 返回所有用户列表，供成员选择器使用。
+	ListUsers() ([]User, error)
 }
 
 // TokenPair JWT Token 对，包含 access 和 refresh token。
@@ -131,6 +133,11 @@ func (s *service) ValidateToken(tokenStr string) (*middleware.Claims, error) {
 // GetByID 根据 ID 查询用户。
 func (s *service) GetByID(id string) (*User, error) {
 	return s.repo.FindByID(id)
+}
+
+// ListUsers 返回所有用户，委托给 Repository.ListAll。
+func (s *service) ListUsers() ([]User, error) {
+	return s.repo.ListAll()
 }
 
 // generateTokenPair 生成 Access Token + Refresh Token。

@@ -36,6 +36,11 @@ type addMemberReq struct {
 	Role     string `json:"role" binding:"required,oneof=owner admin developer viewer"`
 }
 
+// updateMemberRoleReq 修改成员角色的请求体。
+type updateMemberRoleReq struct {
+	Role string `json:"role" binding:"required,oneof=owner admin developer viewer"`
+}
+
 // Create 处理 POST /projects，创建一个新项目。
 func (h *Handler) Create(c *gin.Context) {
 	var req createProjectReq
@@ -191,4 +196,31 @@ func (h *Handler) ListMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": members})
+}
+
+// UpdateMemberRole 处理 PUT /projects/:id/members/:memberID/role，修改成员角色。
+func (h *Handler) UpdateMemberRole(c *gin.Context) {
+	projectID := c.Param("id")
+	memberUserID := c.Param("memberID")
+	operatorID := c.GetString("userID")
+
+	var req updateMemberRoleReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		return
+	}
+
+	if err := h.svc.UpdateMemberRole(projectID, operatorID, memberUserID, req.Role); err != nil {
+		switch {
+		case errors.Is(err, ErrProjectNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+		case errors.Is(err, ErrNoPermission):
+			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "update role failed"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
 }

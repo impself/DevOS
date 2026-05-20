@@ -31,6 +31,8 @@ type Repository interface {
 	ListMembers(projectID string) ([]Member, error)
 	// FindMember 查询指定项目中某个用户的成员记录，用于权限校验。
 	FindMember(projectID, userID string) (*Member, error)
+	// UpdateMemberRole 更新指定成员的角色。
+	UpdateMemberRole(projectID, userID, role string) error
 }
 
 // repository 是 Repository 接口的 GORM 实现。
@@ -102,9 +104,9 @@ func (r *repository) RemoveMember(projectID, userID string) error {
 
 func (r *repository) ListMembers(projectID string) ([]Member, error) {
 	var members []Member
-	// JOIN users 表拉取 username 和 email，前端直接展示无需再查用户
+	// JOIN users 表拉取 username / email / nickname / avatar，前端直接展示无需再查用户
 	if err := r.db.Table("project_members").
-		Select("project_members.*, users.username, users.email").
+		Select("project_members.*, users.username, users.email, users.nickname, users.avatar").
 		Joins("JOIN users ON users.id = project_members.user_id").
 		Where("project_members.project_id = ? AND project_members.deleted_at IS NULL", projectID).
 		Find(&members).Error; err != nil {
@@ -116,11 +118,18 @@ func (r *repository) ListMembers(projectID string) ([]Member, error) {
 func (r *repository) FindMember(projectID, userID string) (*Member, error) {
 	var m Member
 	if err := r.db.Table("project_members").
-		Select("project_members.*, users.username, users.email").
+		Select("project_members.*, users.username, users.email, users.nickname, users.avatar").
 		Joins("JOIN users ON users.id = project_members.user_id").
 		Where("project_members.project_id = ? AND project_members.user_id = ? AND project_members.deleted_at IS NULL", projectID, userID).
 		First(&m).Error; err != nil {
 		return nil, fmt.Errorf("find member: %w", err)
 	}
 	return &m, nil
+}
+
+// UpdateMemberRole 更新指定项目中指定成员的角色。
+func (r *repository) UpdateMemberRole(projectID, userID, role string) error {
+	return r.db.Model(&Member{}).
+		Where("project_id = ? AND user_id = ?", projectID, userID).
+		Update("role", role).Error
 }

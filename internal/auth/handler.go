@@ -145,3 +145,33 @@ func (h *Handler) Me(c *gin.Context) {
 		},
 	})
 }
+
+// ListUsers GET /api/v1/users — 返回所有用户列表，供成员选择器使用。仅管理员可访问。
+func (h *Handler) ListUsers(c *gin.Context) {
+	users, err := h.svc.ListUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "INTERNAL_ERROR",
+			"message": "failed to list users",
+		})
+		return
+	}
+
+	list := make([]userResponse, 0, len(users))
+	for _, u := range users {
+		list = append(list, userResponse{
+			ID:       u.ID,
+			Email:    u.Email,
+			Username: u.Username,
+			Nickname: u.Nickname,
+			Avatar:   u.Avatar,
+			Role:     u.Role,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    list,
+	})
+}
