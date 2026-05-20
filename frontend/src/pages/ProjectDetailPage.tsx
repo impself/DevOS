@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { ArrowLeft, Pencil, UserPlus, Trash2, Plus, CircleDot, Search } from "lucide-react"
+import { ArrowLeft, Pencil, UserPlus, Trash2, Plus, CircleDot, Search, LayoutGrid, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +14,8 @@ import {
   type Task, type CreateTaskReq, type TaskFilters,
 } from "@/api/task"
 import MemberPicker from "@/components/MemberPicker"
+import TaskKanban from "@/components/TaskKanban"
+import TaskDetailDrawer from "@/components/TaskDetailDrawer"
 
 // Priority badge color map
 const priorityConfig: Record<string, { label: string; cls: string }> = {
@@ -71,6 +73,8 @@ export default function ProjectDetailPage() {
   const [taskFilter, setTaskFilter] = useState<TaskFilters>({})
   const [taskPage, setTaskPage] = useState(1)
   const [creatingTask, setCreatingTask] = useState(false)
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list")
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Fetch project detail and member list
   const fetchData = useCallback(async () => {
@@ -306,6 +310,25 @@ export default function ProjectDetailPage() {
                 New Task
               </Button>
             )}
+            {/* View toggle */}
+            <div className="flex border border-border rounded-md overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 cursor-pointer transition-colors ${viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
+                title="List view"
+              >
+                <List className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("kanban")}
+                className={`p-1.5 cursor-pointer transition-colors ${viewMode === "kanban" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"}`}
+                title="Kanban view"
+              >
+                <LayoutGrid className="size-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -351,24 +374,37 @@ export default function ProjectDetailPage() {
           </form>
         )}
 
-        {/* Task list */}
+        {/* Task view */}
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <CircleDot className="size-8 mb-2 opacity-40" />
             <p className="text-sm">No tasks yet. Create one to get started.</p>
           </div>
+        ) : viewMode === "kanban" ? (
+          <TaskKanban
+            tasks={tasks}
+            projectId={id!}
+            canEdit={canEdit}
+            onTaskClick={(t) => setSelectedTask(t)}
+            onRefresh={fetchTasks}
+          />
         ) : (
           <div className="divide-y divide-border">
             {tasks.map((t) => {
               const sc = statusConfig[t.status] || statusConfig.todo
-              const pc = priorityConfig[t.priority] || priorityConfig.none
+              const pc = priorityConfig[t.priority] || priorityConfig.medium
               const tc = typeConfig[t.type] || typeConfig.task
               return (
-                <div key={t.id} className="flex items-center gap-3 py-3 group">
+                <div
+                  key={t.id}
+                  className="flex items-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded px-1"
+                  onClick={() => setSelectedTask(t)}
+                >
                   {/* Status select */}
                   <select
                     value={t.status}
-                    onChange={(e) => handleStatusChange(t.id, e.target.value)}
+                    onChange={(e) => { e.stopPropagation(); handleStatusChange(t.id, e.target.value) }}
+                    onClick={(e) => e.stopPropagation()}
                     className={`text-[10px] px-1.5 py-0.5 rounded font-medium border-0 cursor-pointer ${sc.cls}`}
                   >
                     <option value="backlog">Backlog</option>
@@ -402,7 +438,7 @@ export default function ProjectDetailPage() {
                   {canEdit && (
                     <button
                       type="button"
-                      onClick={() => handleDeleteTask(t.id)}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteTask(t.id) }}
                       className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all cursor-pointer"
                       title="Delete task"
                     >
@@ -415,8 +451,8 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {taskTotal > 20 && (
+        {/* Pagination (list mode only) */}
+        {viewMode === "list" && taskTotal > 20 && (
           <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
             <Button variant="outline" size="sm" disabled={taskPage <= 1} onClick={() => setTaskPage((p) => p - 1)} className="cursor-pointer">
               Prev
@@ -505,6 +541,18 @@ export default function ProjectDetailPage() {
           existingMembers={members}
           onClose={() => setShowMemberPicker(false)}
           onAdded={fetchData}
+        />
+      )}
+
+      {/* Task detail drawer */}
+      {selectedTask && id && (
+        <TaskDetailDrawer
+          task={selectedTask}
+          projectId={id}
+          canEdit={canEdit}
+          onClose={() => setSelectedTask(null)}
+          onUpdated={fetchTasks}
+          onDeleted={fetchTasks}
         />
       )}
     </div>
