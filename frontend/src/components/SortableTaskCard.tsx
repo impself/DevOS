@@ -48,8 +48,8 @@ export default function SortableTaskCard({ task, disabled, onClick }: SortableTa
         {task.priority && priorityDot[task.priority] && (
           <div className={`size-1.5 rounded-full ${priorityDot[task.priority]}`} title={task.priority} />
         )}
-        {task.assignee_name && (
-          <span className="text-[10px] text-muted-foreground truncate">{task.assignee_name}</span>
+        {(task.assignee_nickname || task.assignee_name) && (
+          <span className="text-[10px] text-muted-foreground truncate">{task.assignee_nickname || task.assignee_name}</span>
         )}
         {task.due_date && (
           <span className="text-[10px] text-muted-foreground ml-auto">

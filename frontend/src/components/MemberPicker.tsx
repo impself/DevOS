@@ -46,11 +46,12 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
     return users
       .filter((u) => !memberIds.has(u.id))
       .filter(
-        (u) =>
-          u.username.toLowerCase().includes(term) ||
-          u.email.toLowerCase().includes(term),
+        (u) => {
+          const name = (u.nickname || u.username).toLowerCase()
+          return name.includes(term) || u.email.toLowerCase().includes(term) || u.username.toLowerCase().includes(term)
+        },
       )
-      .sort((a, b) => a.username.localeCompare(b.username))
+      .sort((a, b) => (a.nickname || a.username).localeCompare(b.nickname || b.username))
   }, [users, memberIds, search])
 
   const toggle = (id: string) => {
@@ -114,7 +115,7 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by username or email..."
+              placeholder="Search by name or email..."
               className="h-8 pl-8 text-sm"
             />
           </div>
@@ -150,10 +151,10 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
                     onCheckedChange={() => toggle(u.id)}
                   />
                   <div className="size-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                    {u.username.charAt(0).toUpperCase()}
+                    {(u.nickname || u.username).charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{u.username}</p>
+                    <p className="text-sm font-medium truncate">{u.nickname || u.username}</p>
                     <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                   </div>
                 </label>

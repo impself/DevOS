@@ -224,7 +224,7 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
                 ))}
               </select>
             ) : (
-              <p className="text-sm">{task.assignee_name || "Unassigned"}</p>
+              <p className="text-sm">{task.assignee_nickname || task.assignee_name || "Unassigned"}</p>
             )}
           </div>
 

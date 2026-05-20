@@ -46,7 +46,9 @@ func (r *repository) Create(task *Task) error {
 func (r *repository) FindByID(id string) (*Task, error) {
 	var t Task
 	err := r.db.Raw(`
-		SELECT t.*, ua.username AS assignee_name, ua.email AS assignee_email, uc.username AS creator_name
+		SELECT t.*,
+			ua.username AS assignee_name, ua.nickname AS assignee_nickname,
+			ua.email AS assignee_email, uc.username AS creator_name
 		FROM tasks t
 		LEFT JOIN users ua ON ua.id = t.assignee_id
 		LEFT JOIN users uc ON uc.id = t.created_by
@@ -69,7 +71,9 @@ func (r *repository) Delete(id string) error {
 func (r *repository) List(projectID string, f ListFilters) ([]Task, int64, error) {
 	// base SQL parts
 	baseSelect := `
-		SELECT t.*, ua.username AS assignee_name, ua.email AS assignee_email, uc.username AS creator_name
+		SELECT t.*,
+			ua.username AS assignee_name, ua.nickname AS assignee_nickname,
+			ua.email AS assignee_email, uc.username AS creator_name
 		FROM tasks t
 		LEFT JOIN users ua ON ua.id = t.assignee_id
 		LEFT JOIN users uc ON uc.id = t.created_by

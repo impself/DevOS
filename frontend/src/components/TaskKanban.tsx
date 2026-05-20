@@ -147,8 +147,8 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
               </span>
               <span className="text-xs font-medium truncate">{activeTask.title}</span>
             </div>
-            {activeTask.assignee_name && (
-              <p className="text-[10px] text-muted-foreground">{activeTask.assignee_name}</p>
+            {(activeTask.assignee_nickname || activeTask.assignee_name) && (
+              <p className="text-[10px] text-muted-foreground">{activeTask.assignee_nickname || activeTask.assignee_name}</p>
             )}
           </div>
         ) : null}

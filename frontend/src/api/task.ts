@@ -17,6 +17,7 @@ export interface Task {
   sprint_id: string | null
   sort_order: number
   assignee_name: string
+  assignee_nickname: string
   creator_name: string
   assignee_email: string
   created_at: string
