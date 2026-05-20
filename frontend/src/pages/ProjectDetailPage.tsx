@@ -17,11 +17,9 @@ import MemberPicker from "@/components/MemberPicker"
 
 // Priority badge color map
 const priorityConfig: Record<string, { label: string; cls: string }> = {
-  critical: { label: "Critical", cls: "bg-red-500/10 text-red-600" },
-  high: { label: "High", cls: "bg-orange-500/10 text-orange-600" },
+  high: { label: "High", cls: "bg-red-500/10 text-red-600" },
   medium: { label: "Medium", cls: "bg-yellow-500/10 text-yellow-600" },
   low: { label: "Low", cls: "bg-blue-500/10 text-blue-600" },
-  none: { label: "None", cls: "bg-muted text-muted-foreground" },
 }
 
 // Status badge color map
@@ -74,7 +72,7 @@ export default function ProjectDetailPage() {
   const [taskPage, setTaskPage] = useState(1)
   const [creatingTask, setCreatingTask] = useState(false)
 
-  // Fetch project detail, member list, and tasks
+  // Fetch project detail and member list
   const fetchData = useCallback(async () => {
     if (!id) return
     setLoading(true)
@@ -93,6 +91,7 @@ export default function ProjectDetailPage() {
     }
   }, [id])
 
+  // Fetch tasks with current filters
   const fetchTasks = useCallback(async () => {
     if (!id) return
     try {
@@ -297,7 +296,6 @@ export default function ProjectDetailPage() {
               className="h-8 rounded-md border border-input bg-background px-2 text-xs cursor-pointer"
             >
               <option value="">All Priority</option>
-              <option value="critical">Critical</option>
               <option value="high">High</option>
               <option value="medium">Medium</option>
               <option value="low">Low</option>
@@ -334,15 +332,13 @@ export default function ProjectDetailPage() {
                 <option value="improvement">Improvement</option>
               </select>
               <select
-                value={newTask.priority || "none"}
+                value={newTask.priority || "medium"}
                 onChange={(e) => setNewTask((t) => ({ ...t, priority: e.target.value }))}
                 className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               >
-                <option value="none">No Priority</option>
-                <option value="low">Low</option>
                 <option value="medium">Medium</option>
+                <option value="low">Low</option>
                 <option value="high">High</option>
-                <option value="critical">Critical</option>
               </select>
               <div className="flex-1" />
               <Button type="submit" size="sm" disabled={creatingTask} className="cursor-pointer">
@@ -390,9 +386,7 @@ export default function ProjectDetailPage() {
                       <span className="text-sm font-medium truncate">{t.title}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      {t.priority !== "none" && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${pc.cls}`}>{pc.label}</span>
-                      )}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${pc.cls}`}>{pc.label}</span>
                       {t.assignee_name && (
                         <span className="text-[10px] text-muted-foreground">{t.assignee_name}</span>
                       )}

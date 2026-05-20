@@ -20,7 +20,7 @@ var validStatuses = map[string]bool{
 
 // validPriorities 合法的优先级值。
 var validPriorities = map[string]bool{
-	"none": true, "low": true, "medium": true, "high": true, "critical": true,
+	"low": true, "medium": true, "high": true,
 }
 
 // validTypes 合法的任务类型值。
@@ -57,7 +57,7 @@ func (s *service) Create(task *Task) (*Task, error) {
 		task.Status = "todo"
 	}
 	if !validPriorities[task.Priority] {
-		task.Priority = "none"
+		task.Priority = "medium"
 	}
 	if !validTypes[task.Type] {
 		task.Type = "task"

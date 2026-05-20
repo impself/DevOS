@@ -18,7 +18,7 @@ type Task struct {
 	Description string         `gorm:"type:text" json:"description"`
 	Type        string         `gorm:"size:20;not null;default:'task'" json:"type"`        // task / bug / feature / improvement
 	Status      string         `gorm:"size:20;not null;default:'todo'" json:"status"`      // backlog / todo / in_progress / in_review / done / cancelled
-	Priority    string         `gorm:"size:20;not null;default:'none'" json:"priority"`    // none / low / medium / high / critical
+	Priority    string         `gorm:"size:20;not null;default:'medium'" json:"priority"`   // high / medium / low
 	StoryPoints *int           `gorm:"type:smallint" json:"story_points"`
 	DueDate     *time.Time     `json:"due_date"`
 	AssigneeID  *string        `gorm:"type:uuid;index" json:"assignee_id"`
