@@ -19,6 +19,7 @@ export interface Task {
   assignee_name: string
   assignee_nickname: string
   creator_name: string
+  creator_nickname: string
   assignee_email: string
   created_at: string
   updated_at: string

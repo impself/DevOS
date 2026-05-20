@@ -33,6 +33,7 @@ type Task struct {
 	AssigneeName     string `gorm:"->" json:"assignee_name,omitempty"`
 	AssigneeNickname string `gorm:"->" json:"assignee_nickname,omitempty"`
 	CreatorName      string `gorm:"->" json:"creator_name,omitempty"`
+	CreatorNickname  string `gorm:"->" json:"creator_nickname,omitempty"`
 	AssigneeEmail    string `gorm:"->" json:"assignee_email,omitempty"`
 }
 

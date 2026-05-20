@@ -231,7 +231,7 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
           {/* Creator */}
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Created by</label>
-            <p className="text-sm">{task.creator_name}</p>
+            <p className="text-sm">{task.creator_nickname || task.creator_name}</p>
           </div>
 
           {/* Description */}

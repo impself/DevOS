@@ -48,7 +48,7 @@ func (r *repository) FindByID(id string) (*Task, error) {
 	err := r.db.Raw(`
 		SELECT t.*,
 			ua.username AS assignee_name, ua.nickname AS assignee_nickname,
-			ua.email AS assignee_email, uc.username AS creator_name
+			ua.email AS assignee_email, uc.username AS creator_name, uc.nickname AS creator_nickname
 		FROM tasks t
 		LEFT JOIN users ua ON ua.id = t.assignee_id
 		LEFT JOIN users uc ON uc.id = t.created_by
@@ -73,7 +73,7 @@ func (r *repository) List(projectID string, f ListFilters) ([]Task, int64, error
 	baseSelect := `
 		SELECT t.*,
 			ua.username AS assignee_name, ua.nickname AS assignee_nickname,
-			ua.email AS assignee_email, uc.username AS creator_name
+			ua.email AS assignee_email, uc.username AS creator_name, uc.nickname AS creator_nickname
 		FROM tasks t
 		LEFT JOIN users ua ON ua.id = t.assignee_id
 		LEFT JOIN users uc ON uc.id = t.created_by
