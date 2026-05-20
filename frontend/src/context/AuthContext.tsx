@@ -7,6 +7,8 @@ export interface User {
   id: string
   email: string
   username: string
+  nickname?: string
+  avatar?: string
   role: string
 }
 
@@ -19,6 +21,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, username: string, password: string) => Promise<void>
   logout: () => void
+  updateUser: (user: User) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -30,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  // Restore session from localStorage on mount — runs once before rendering auth gating
+  // Restore session from localStorage on mount
   useEffect(() => {
     const savedToken = localStorage.getItem("access_token")
     const savedUser = localStorage.getItem("user")
@@ -83,6 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate("/login")
   }, [navigate])
 
+  // Update user in context and localStorage
+  const updateUser = useCallback((updated: User) => {
+    setUser(updated)
+    localStorage.setItem("user", JSON.stringify(updated))
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -93,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login: handleLogin,
         register: handleRegister,
         logout: handleLogout,
+        updateUser,
       }}
     >
       {children}

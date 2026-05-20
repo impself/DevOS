@@ -7,6 +7,7 @@ import { Component as RegisterPage } from "@/components/ui/animated-characters-r
 import DashboardLayout from "@/layouts/DashboardLayout"
 import DashboardPage from "@/pages/DashboardPage"
 import ProjectDetailPage from "@/pages/ProjectDetailPage"
+import AccountSettingsPage from "@/pages/AccountSettingsPage"
 
 // App root — wraps entire app with AuthProvider and sets up client-side routing
 export default function App() {
@@ -28,7 +29,7 @@ export default function App() {
           >
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
-            <Route path="/settings" element={<div className="p-8 text-muted-foreground">Settings — coming soon</div>} />
+            <Route path="/settings" element={<AccountSettingsPage />} />
           </Route>
 
           {/* Default redirect */}

@@ -16,6 +16,8 @@ type Repository interface {
 	IsAdmin(userID string) (bool, error)
 	// ListAll 返回所有用户，按 username 升序排列，供成员选择器使用。
 	ListAll() ([]User, error)
+	// Update 更新用户信息。
+	Update(user *User) error
 }
 
 type repository struct {
@@ -46,6 +48,11 @@ func (r *repository) FindByUsername(username string) (*User, error) {
 		return nil, fmt.Errorf("find by username: %w", err)
 	}
 	return &user, nil
+}
+
+// Update 保存用户信息修改。
+func (r *repository) Update(user *User) error {
+	return r.db.Save(user).Error
 }
 
 // IsAdmin 判断用户是否有系统管理员角色。

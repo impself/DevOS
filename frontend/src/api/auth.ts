@@ -51,3 +51,19 @@ export async function getMe() {
   const { data } = await api.get("/auth/me")
   return data
 }
+
+// PUT /auth/profile — update nickname and avatar
+export async function updateProfile(nickname: string, avatar: string) {
+  const { data } = await api.put("/auth/profile", { nickname, avatar })
+  return data
+}
+
+// POST /auth/avatar — upload avatar image file
+export async function uploadAvatar(file: File) {
+  const formData = new FormData()
+  formData.append("avatar", file)
+  const { data } = await api.post("/auth/avatar", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  })
+  return data
+}

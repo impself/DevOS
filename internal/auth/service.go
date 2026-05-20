@@ -25,6 +25,8 @@ type Service interface {
 	GetByID(id string) (*User, error)
 	// ListUsers 返回所有用户列表，供成员选择器使用。
 	ListUsers() ([]User, error)
+	// UpdateProfile 更新用户昵称和头像。
+	UpdateProfile(userID, nickname, avatar string) (*User, error)
 }
 
 // TokenPair JWT Token 对，包含 access 和 refresh token。
@@ -138,6 +140,24 @@ func (s *service) GetByID(id string) (*User, error) {
 // ListUsers 返回所有用户，委托给 Repository.ListAll。
 func (s *service) ListUsers() ([]User, error) {
 	return s.repo.ListAll()
+}
+
+// UpdateProfile 更新用户昵称和头像路径。
+func (s *service) UpdateProfile(userID, nickname, avatar string) (*User, error) {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if nickname != "" {
+		user.Nickname = nickname
+	}
+	if avatar != "" {
+		user.Avatar = avatar
+	}
+	if err := s.repo.Update(user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 // generateTokenPair 生成 Access Token + Refresh Token。

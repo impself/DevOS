@@ -2,7 +2,11 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -173,5 +177,88 @@ func (h *Handler) ListUsers(c *gin.Context) {
 		"code":    0,
 		"message": "success",
 		"data":    list,
+	})
+}
+
+// updateProfileReq 更新用户资料的请求体。
+type updateProfileReq struct {
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
+}
+
+// UpdateProfile PUT /api/v1/auth/profile — 更新当前用户的昵称和头像。
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	var req updateProfileReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		return
+	}
+
+	user, err := h.svc.UpdateProfile(userID, req.Nickname, req.Avatar)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "update profile failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0, "message": "success",
+		"data": userResponse{
+			ID: user.ID, Email: user.Email, Username: user.Username,
+			Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
+		},
+	})
+}
+
+// UploadAvatar POST /api/v1/auth/avatar — 上传头像文件到 frontend/resource/avatar/。
+func (h *Handler) UploadAvatar(c *gin.Context) {
+	userID := c.GetString("userID")
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": "avatar file required"})
+		return
+	}
+
+	// validate file size (max 2MB)
+	if file.Size > 2*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": "file too large, max 2MB"})
+		return
+	}
+
+	// validate extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" && ext != ".webp" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": "only jpg/png/gif/webp allowed"})
+		return
+	}
+
+	// save to frontend/resource/avatar/{userID}{ext}
+	avatarDir := filepath.Join("frontend", "resource", "avatar")
+	_ = os.MkdirAll(avatarDir, 0o755)
+
+	filename := fmt.Sprintf("%s%s", userID, ext)
+	savePath := filepath.Join(avatarDir, filename)
+
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "save file failed"})
+		return
+	}
+
+	// update user avatar path in DB
+	avatarURL := "/avatars/" + filename
+	user, err := h.svc.UpdateProfile(userID, "", avatarURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "update avatar failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0, "message": "success",
+		"data": userResponse{
+			ID: user.ID, Email: user.Email, Username: user.Username,
+			Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
+		},
 	})
 }

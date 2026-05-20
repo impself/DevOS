@@ -79,6 +79,9 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// 静态文件：头像访问
+	r.Static("/avatars", "./frontend/resource/avatar")
+
 	// API 路由注册
 	api := r.Group("/api/v1")
 	{
@@ -94,6 +97,8 @@ func main() {
 		authed.Use(middleware.Auth(cfg.JWT.Secret))
 		{
 			authed.GET("/auth/me", authHandler.Me)
+				authed.PUT("/auth/profile", authHandler.UpdateProfile)
+				authed.POST("/auth/avatar", authHandler.UploadAvatar)
 
 			// 用户列表，供成员选择器使用
 			authed.GET("/users", authHandler.ListUsers)
