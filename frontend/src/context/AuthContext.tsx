@@ -33,20 +33,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  // Restore session from localStorage on mount
+  // Restore session from localStorage on mount, then refresh from server
   useEffect(() => {
-    const savedToken = localStorage.getItem("access_token")
-    const savedUser = localStorage.getItem("user")
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken)
-        setUser(JSON.parse(savedUser))
-      } catch {
-        localStorage.removeItem("access_token")
-        localStorage.removeItem("user")
+    const init = async () => {
+      const savedToken = localStorage.getItem("access_token")
+      const savedUser = localStorage.getItem("user")
+      if (savedToken && savedUser) {
+        try {
+          setToken(savedToken)
+          setUser(JSON.parse(savedUser))
+          // Refresh user data from server to get latest nickname/avatar
+          const meRes = await authApi.getMe()
+          if (meRes.code === 0 && meRes.data) {
+            const refreshed = { ...JSON.parse(savedUser), ...meRes.data }
+            setUser(refreshed)
+            localStorage.setItem("user", JSON.stringify(refreshed))
+          }
+        } catch {
+          localStorage.removeItem("access_token")
+          localStorage.removeItem("user")
+        }
       }
+      setLoading(false)
     }
-    setLoading(false)
+    init()
   }, [])
 
   // Login — call API, persist token + user, navigate to dashboard

@@ -10,6 +10,8 @@ export interface LoginResponse {
       id: string
       email: string
       username: string
+      nickname: string
+      avatar: string
       role: string
     }
   }

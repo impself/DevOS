@@ -41,6 +41,8 @@ type LoginUser struct {
 	ID       string `json:"id"`
 	Email    string `json:"email"`
 	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar"`
 	Role     string `json:"role"`
 }
 
@@ -115,6 +117,8 @@ func (s *service) Login(email, password string) (*LoginResult, error) {
 			ID:       user.ID,
 			Email:    user.Email,
 			Username: user.Username,
+			Nickname: user.Nickname,
+			Avatar:   user.Avatar,
 			Role:     user.Role,
 		},
 	}, nil
