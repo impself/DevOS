@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/impself/DevOS/internal/auth"
+	"github.com/impself/DevOS/internal/comment"
 	"github.com/impself/DevOS/internal/project"
 	"github.com/impself/DevOS/internal/task"
 	"github.com/impself/DevOS/pkg/config"
@@ -42,7 +43,7 @@ func main() {
 	}
 
 	// 自动迁移数据库表结构，开发阶段使用，生产环境应改用 migration 工具
-	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}, &comment.Comment{}); err != nil {
 		logger.L.Fatalf("auto migrate: %v", err)
 	}
 
@@ -58,6 +59,10 @@ func main() {
 	taskRepo := task.NewRepository(database.DB)
 	taskSvc := task.NewService(taskRepo, authRepo)
 	taskHandler := task.NewHandler(taskSvc)
+
+	commentRepo := comment.NewRepository(database.DB)
+	commentSvc := comment.NewService(commentRepo, authRepo)
+	commentHandler := comment.NewHandler(commentSvc)
 
 	// Gin 引擎初始化
 	if cfg.Server.Mode == "release" {
@@ -113,8 +118,13 @@ func main() {
 				p.GET("/:id/tasks/:taskID", taskHandler.Get)
 				p.PUT("/:id/tasks/:taskID", taskHandler.Update)
 				p.DELETE("/:id/tasks/:taskID", taskHandler.Delete)
+
+					// 评论
+					p.POST("/:id/tasks/:taskID/comments", commentHandler.Create)
+					p.GET("/:id/tasks/:taskID/comments", commentHandler.List)
+					p.DELETE("/:id/tasks/:taskID/comments/:commentID", commentHandler.Delete)
+				}
 			}
-		}
 	}
 
 	// 启动 HTTP 服务，在独立 goroutine 中运行以便主 goroutine 监听关闭信号

@@ -550,6 +550,7 @@ export default function ProjectDetailPage() {
           task={selectedTask}
           projectId={id}
           canEdit={canEdit}
+          members={members}
           onClose={() => setSelectedTask(null)}
           onUpdated={fetchTasks}
           onDeleted={fetchTasks}
