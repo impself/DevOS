@@ -33,10 +33,10 @@ type Member struct {
 	ProjectID string         `gorm:"type:uuid;not null;index" json:"project_id"`
 	UserID    string         `gorm:"type:uuid;not null;index" json:"user_id"`
 	Role      string         `gorm:"size:20;not null;default:'developer'" json:"role"` // owner / admin / developer / viewer
-	Username  string         `gorm:"-" json:"username"`
-	Email     string         `gorm:"-" json:"email"`
-	Nickname  string         `gorm:"-" json:"nickname"`
-	Avatar    string         `gorm:"-" json:"avatar"`
+	Username  string         `gorm:"->" json:"username"`
+	Email     string         `gorm:"->" json:"email"`
+	Nickname  string         `gorm:"->" json:"nickname"`
+	Avatar    string         `gorm:"->" json:"avatar"`
 	JoinedAt  time.Time      `json:"joined_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }

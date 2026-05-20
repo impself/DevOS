@@ -30,9 +30,9 @@ type Task struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// JOIN 虚字段，不持久化
-	AssigneeName  string `gorm:"-" json:"assignee_name,omitempty"`
-	CreatorName   string `gorm:"-" json:"creator_name,omitempty"`
-	AssigneeEmail string `gorm:"-" json:"assignee_email,omitempty"`
+	AssigneeName  string `gorm:"->" json:"assignee_name,omitempty"`
+	CreatorName   string `gorm:"->" json:"creator_name,omitempty"`
+	AssigneeEmail string `gorm:"->" json:"assignee_email,omitempty"`
 }
 
 // TableName 指定 Task 对应的数据库表名。

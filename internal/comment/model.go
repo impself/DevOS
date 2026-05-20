@@ -18,9 +18,9 @@ type Comment struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// JOIN 虚字段
-	Username  string `gorm:"-" json:"username"`
-	Nickname  string `gorm:"-" json:"nickname"`
-	Avatar    string `gorm:"-" json:"avatar"`
+	Username  string `gorm:"->" json:"username"`
+	Nickname  string `gorm:"->" json:"nickname"`
+	Avatar    string `gorm:"->" json:"avatar"`
 }
 
 // TableName 指定 Comment 对应的数据库表名。
