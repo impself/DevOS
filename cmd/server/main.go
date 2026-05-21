@@ -16,6 +16,7 @@ import (
 	"github.com/impself/DevOS/internal/auth"
 	"github.com/impself/DevOS/internal/comment"
 	"github.com/impself/DevOS/internal/project"
+	"github.com/impself/DevOS/internal/tag"
 	"github.com/impself/DevOS/internal/task"
 	"github.com/impself/DevOS/pkg/config"
 	"github.com/impself/DevOS/pkg/database"
@@ -43,7 +44,7 @@ func main() {
 	}
 
 	// 自动迁移数据库表结构，开发阶段使用，生产环境应改用 migration 工具
-	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}, &comment.Comment{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}, &comment.Comment{}, &tag.Tag{}, &tag.TaskTag{}); err != nil {
 		logger.L.Fatalf("auto migrate: %v", err)
 	}
 
@@ -56,9 +57,13 @@ func main() {
 	projectSvc := project.NewService(projectRepo, authRepo)
 	projectHandler := project.NewHandler(projectSvc)
 
+	tagRepo := tag.NewRepository(database.DB)
+	tagSvc := tag.NewService(tagRepo, authRepo, projectRepo)
+	tagHandler := tag.NewHandler(tagSvc)
+
 	taskRepo := task.NewRepository(database.DB)
 	taskSvc := task.NewService(taskRepo, authRepo, projectRepo)
-	taskHandler := task.NewHandler(taskSvc)
+	taskHandler := task.NewHandler(taskSvc, tagSvc)
 
 	commentRepo := comment.NewRepository(database.DB)
 	commentSvc := comment.NewService(commentRepo, authRepo)
@@ -128,6 +133,12 @@ func main() {
 				p.POST("/:id/tasks/:taskID/comments", commentHandler.Create)
 				p.GET("/:id/tasks/:taskID/comments", commentHandler.List)
 				p.DELETE("/:id/tasks/:taskID/comments/:commentID", commentHandler.Delete)
+				// 标签 CRUD
+				p.POST("/:id/tags", tagHandler.Create)
+				p.GET("/:id/tags", tagHandler.List)
+				p.PUT("/:id/tags/:tagID", tagHandler.Update)
+				p.DELETE("/:id/tags/:tagID", tagHandler.Delete)
+				p.PUT("/:id/tasks/:taskID/tags", tagHandler.SetTaskTags)
 			}
 		}
 	}

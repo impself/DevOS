@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // Pupil — standalone pupil dot that tracks mouse position or follows a forced direction
 interface PupilProps {
@@ -466,18 +466,6 @@ function LoginPage() {
           </div>
         </div>
 
-        <div className="relative z-20 flex items-center gap-8 text-sm text-primary-foreground/60">
-          <a href="#" className="hover:text-primary-foreground transition-colors">
-            Privacy Policy
-          </a>
-          <a href="#" className="hover:text-primary-foreground transition-colors">
-            Terms of Service
-          </a>
-          <a href="#" className="hover:text-primary-foreground transition-colors">
-            Contact
-          </a>
-        </div>
-
         {/* Decorative elements */}
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
         <div className="absolute top-1/4 right-1/4 size-64 bg-primary-foreground/10 rounded-full blur-3xl" />
@@ -555,12 +543,6 @@ function LoginPage() {
                   Remember for 30 days
                 </Label>
               </div>
-              <a
-                href="#"
-                className="text-sm text-primary hover:underline font-medium"
-              >
-                Forgot password?
-              </a>
             </div>
 
             {error && (
@@ -578,18 +560,6 @@ function LoginPage() {
               {isLoading ? "Signing in..." : "Log in"}
             </Button>
           </form>
-
-          {/* Social Login */}
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              className="w-full h-12 bg-background border-border/60 hover:bg-accent"
-              type="button"
-            >
-              <Mail className="mr-2 size-5" />
-              Log in with Google
-            </Button>
-          </div>
 
           {/* Sign Up Link */}
           <div className="text-center text-sm text-muted-foreground mt-8">

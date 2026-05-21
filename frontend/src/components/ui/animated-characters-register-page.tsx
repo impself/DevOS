@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { Eye, EyeOff, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── Password strength calculator ────────────────────────────────────
 // Returns 0-4 score: length, uppercase, lowercase, digit, special char
@@ -416,13 +416,6 @@ function RegisterPage() {
             )}
           </div>
         </div>
-
-        <div className="relative z-20 flex items-center gap-8 text-sm text-primary-foreground/60">
-          <span>Privacy Policy</span>
-          <span>Terms of Service</span>
-          <span>Contact</span>
-        </div>
-
         {/* Decorative background */}
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]" />
         <div className="absolute top-1/4 right-1/4 size-64 bg-primary-foreground/10 rounded-full blur-3xl" />

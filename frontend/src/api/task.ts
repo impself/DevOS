@@ -1,4 +1,5 @@
 import api from "./client"
+import type { Tag } from "./tag"
 
 // Task data shape
 export interface Task {
@@ -21,6 +22,7 @@ export interface Task {
   creator_name: string
   creator_nickname: string
   assignee_email: string
+  tags: Tag[]
   created_at: string
   updated_at: string
 }

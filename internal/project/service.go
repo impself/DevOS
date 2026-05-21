@@ -1,18 +1,8 @@
 package project
 
 import (
-	"errors"
-
 	"github.com/google/uuid"
 	"github.com/impself/DevOS/internal/auth"
-)
-
-// 业务层错误定义，handler 层根据这些错误返回对应的 HTTP 状态码。
-var (
-	ErrProjectNotFound = errors.New("project not found")
-	ErrNoPermission    = errors.New("no permission")
-	ErrAlreadyMember   = errors.New("already a member")
-	ErrUserNotFound    = errors.New("user not found")
 )
 
 // Service 定义项目管理的业务逻辑接口。

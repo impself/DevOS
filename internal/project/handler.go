@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impself/DevOS/pkg/response"
 )
 
 // Handler 处理项目相关的 HTTP 请求，将请求参数校验后委托给 Service。
@@ -46,23 +47,22 @@ type updateMemberRoleReq struct {
 func (h *Handler) Create(c *gin.Context) {
 	var req createProjectReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
-	// 从认证中间件注入的上下文中获取当前用户 ID
 	userID := c.GetString("userID")
 	p, err := h.svc.Create(req.Name, req.Description, userID)
 	if err != nil {
 		if errors.Is(err, ErrNoPermission) {
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "only admin can create projects"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "only admin can create projects")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "create project failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "create project failed")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "success", "data": p})
+	response.Created(c, p)
 }
 
 // Get 处理 GET /projects/:id，查询单个项目详情。
@@ -73,14 +73,14 @@ func (h *Handler) Get(c *gin.Context) {
 	p, err := h.svc.GetByID(id, userID)
 	if err != nil {
 		if errors.Is(err, ErrProjectNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+			response.Error(c, http.StatusNotFound, response.CodeProjectNotFound, "project not found")
 			return
 		}
-		c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": p})
+	response.Success(c, p)
 }
 
 // List 处理 GET /projects，分页查询当前用户的项目列表。
@@ -92,15 +92,11 @@ func (h *Handler) List(c *gin.Context) {
 	projects, total, err := h.svc.List(userID, page, pageSize)
 	if err != nil {
 		log.Printf("list projects error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "list projects failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "list projects failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": 0, "message": "success",
-		"data": projects,
-		"pagination": gin.H{"page": page, "page_size": pageSize, "total": total},
-	})
+	response.SuccessWithPagination(c, projects, page, pageSize, total)
 }
 
 // Update 处理 PUT /projects/:id，更新项目信息。
@@ -110,21 +106,21 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req updateProjectReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	p, err := h.svc.Update(id, userID, req.Name, req.Description)
 	if err != nil {
 		if errors.Is(err, ErrProjectNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+			response.Error(c, http.StatusNotFound, response.CodeProjectNotFound, "project not found")
 			return
 		}
-		c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": p})
+	response.Success(c, p)
 }
 
 // Delete 处理 DELETE /projects/:id，删除项目（仅 owner 可操作）。
@@ -134,14 +130,14 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	if err := h.svc.Delete(id, userID); err != nil {
 		if errors.Is(err, ErrProjectNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+			response.Error(c, http.StatusNotFound, response.CodeProjectNotFound, "project not found")
 			return
 		}
-		c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
 
 // AddMember 处理 POST /projects/:id/members，添加项目成员。
@@ -151,25 +147,25 @@ func (h *Handler) AddMember(c *gin.Context) {
 
 	var req addMemberReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	if err := h.svc.AddMember(projectID, userID, req.Username, req.Role); err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+			response.Error(c, http.StatusNotFound, response.CodeProjectNotFound, "project not found")
 		case errors.Is(err, ErrUserNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "USER_NOT_FOUND", "message": "user not found"})
+			response.Error(c, http.StatusNotFound, response.CodeUserNotFound, "user not found")
 		case errors.Is(err, ErrAlreadyMember):
-			c.JSON(http.StatusConflict, gin.H{"code": "ALREADY_MEMBER", "message": "user is already a member"})
+			response.Error(c, http.StatusConflict, response.CodeAlreadyMember, "user is already a member")
 		default:
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
 
 // RemoveMember 处理 DELETE /projects/:id/members/:memberID，移除项目成员。
@@ -179,11 +175,11 @@ func (h *Handler) RemoveMember(c *gin.Context) {
 	userID := c.GetString("userID")
 
 	if err := h.svc.RemoveMember(projectID, userID, memberID); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
 
 // ListMembers 处理 GET /projects/:id/members，查询项目成员列表。
@@ -193,11 +189,11 @@ func (h *Handler) ListMembers(c *gin.Context) {
 
 	members, err := h.svc.ListMembers(projectID, userID)
 	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": members})
+	response.Success(c, members)
 }
 
 // UpdateMemberRole 处理 PUT /projects/:id/members/:memberID/role，修改成员角色。
@@ -208,21 +204,21 @@ func (h *Handler) UpdateMemberRole(c *gin.Context) {
 
 	var req updateMemberRoleReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	if err := h.svc.UpdateMemberRole(projectID, operatorID, memberUserID, req.Role); err != nil {
 		switch {
 		case errors.Is(err, ErrProjectNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "PROJECT_NOT_FOUND", "message": "project not found"})
+			response.Error(c, http.StatusNotFound, response.CodeProjectNotFound, "project not found")
 		case errors.Is(err, ErrNoPermission):
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "update role failed"})
+			response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "update role failed")
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
