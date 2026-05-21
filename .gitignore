@@ -1,3 +1,6 @@
 .env
 node_modules/
-.vite
+.vite/
+dist/
+node_modules/
+build/
