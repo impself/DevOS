@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { listUsers, addMember, type UserItem, type Member } from "@/api/project"
+import { useToast } from "@/context/ToastContext"
 
 interface MemberPickerProps {
   projectId: string
@@ -12,8 +13,8 @@ interface MemberPickerProps {
   onAdded: () => void
 }
 
-// MemberPicker — select users from a searchable list and add them to the project in batch.
 export default function MemberPicker({ projectId, existingMembers, onClose, onAdded }: MemberPickerProps) {
+  const { toast } = useToast()
   const [users, setUsers] = useState<UserItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -21,7 +22,6 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
   const [role, setRole] = useState("developer")
   const [submitting, setSubmitting] = useState(false)
 
-  // existing member user IDs for exclusion
   const memberIds = useMemo(
     () => new Set(existingMembers.map((m) => m.user_id)),
     [existingMembers],
@@ -33,14 +33,13 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
         const res = await listUsers()
         if (res.code === 0) setUsers(res.data || [])
       } catch {
-        // silent
+        toast.error("Failed to load users")
       } finally {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [toast])
 
-  // filter: exclude existing members + match search term, sorted A-Z
   const filtered = useMemo(() => {
     const term = search.toLowerCase()
     return users
@@ -83,12 +82,14 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
       )
       const failed = results.filter((r) => r.status === "rejected").length
       if (failed > 0) {
-        // partial failure handled silently for now
+        toast.error(`Failed to add ${failed} member(s)`)
+      } else {
+        toast.success(`${names.length} member(s) added`)
       }
       onAdded()
       onClose()
     } catch {
-      // silent
+      toast.error("Failed to add members")
     } finally {
       setSubmitting(false)
     }
@@ -131,7 +132,6 @@ export default function MemberPicker({ projectId, existingMembers, onClose, onAd
             </div>
           ) : (
             <>
-              {/* Select all row */}
               <label className="flex items-center gap-3 px-4 py-2 border-b border-border bg-muted/30 cursor-pointer hover:bg-muted/50">
                 <Checkbox
                   checked={selected.size === filtered.length && filtered.length > 0}

@@ -20,6 +20,10 @@ type Project struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// JOIN 虚字段，通过 SQL 聚合查询填充，不持久化
+	TaskTotal int64 `gorm:"->" json:"task_total,omitempty"`
+	TaskDone  int64 `gorm:"->" json:"task_done,omitempty"`
 }
 
 // TableName 指定 Project 对应的数据库表名。

@@ -17,7 +17,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor — on 401 clear stale credentials and redirect to login
+// Response interceptor — handle 401 and 429 globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {

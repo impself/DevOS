@@ -57,7 +57,7 @@ func main() {
 	projectHandler := project.NewHandler(projectSvc)
 
 	taskRepo := task.NewRepository(database.DB)
-	taskSvc := task.NewService(taskRepo, authRepo)
+	taskSvc := task.NewService(taskRepo, authRepo, projectRepo)
 	taskHandler := task.NewHandler(taskSvc)
 
 	commentRepo := comment.NewRepository(database.DB)
@@ -72,7 +72,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORS())
-	r.Use(middleware.RateLimit(100, time.Minute))
+	r.Use(middleware.RateLimit(1000, time.Minute))
 
 	// 健康检查端点，用于负载均衡器和监控探活
 	r.GET("/health", func(c *gin.Context) {
@@ -97,8 +97,8 @@ func main() {
 		authed.Use(middleware.Auth(cfg.JWT.Secret))
 		{
 			authed.GET("/auth/me", authHandler.Me)
-				authed.PUT("/auth/profile", authHandler.UpdateProfile)
-				authed.POST("/auth/avatar", authHandler.UploadAvatar)
+			authed.PUT("/auth/profile", authHandler.UpdateProfile)
+			authed.POST("/auth/avatar", authHandler.UploadAvatar)
 
 			// 用户列表，供成员选择器使用
 			authed.GET("/users", authHandler.ListUsers)
@@ -124,12 +124,12 @@ func main() {
 				p.PUT("/:id/tasks/:taskID", taskHandler.Update)
 				p.DELETE("/:id/tasks/:taskID", taskHandler.Delete)
 
-					// 评论
-					p.POST("/:id/tasks/:taskID/comments", commentHandler.Create)
-					p.GET("/:id/tasks/:taskID/comments", commentHandler.List)
-					p.DELETE("/:id/tasks/:taskID/comments/:commentID", commentHandler.Delete)
-				}
+				// 评论
+				p.POST("/:id/tasks/:taskID/comments", commentHandler.Create)
+				p.GET("/:id/tasks/:taskID/comments", commentHandler.List)
+				p.DELETE("/:id/tasks/:taskID/comments/:commentID", commentHandler.Delete)
 			}
+		}
 	}
 
 	// 启动 HTTP 服务，在独立 goroutine 中运行以便主 goroutine 监听关闭信号

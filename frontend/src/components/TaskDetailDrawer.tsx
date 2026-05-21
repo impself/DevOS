@@ -7,6 +7,7 @@ import {
 } from "@/api/task"
 import { createComment, listComments, type Comment } from "@/api/comment"
 import type { Member } from "@/api/project"
+import { useToast } from "@/context/ToastContext"
 
 interface TaskDetailDrawerProps {
   task: Task
@@ -41,6 +42,7 @@ const typeOptions = [
 ]
 
 export default function TaskDetailDrawer({ task, projectId, canEdit, members, onClose, onUpdated, onDeleted }: TaskDetailDrawerProps) {
+  const { toast } = useToast()
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description)
   const [status, setStatus] = useState(task.status)
@@ -68,8 +70,10 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
     // Load comments
     listComments(projectId, task.id).then((res) => {
       if (res.code === 0) setComments(res.data || [])
-    }).catch(() => {})
-  }, [task.id, projectId])
+    }).catch(() => {
+      toast.error("Failed to load comments")
+    })
+  }, [task.id, projectId, toast])
 
   const markDirty = () => setDirty(true)
 
@@ -83,9 +87,10 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
       else updates.assignee_id = ""
       await updateTask(projectId, task.id, updates)
       setDirty(false)
+      toast.success("Task saved")
       onUpdated()
     } catch {
-      // silent
+      toast.error("Failed to save task")
     } finally {
       setSaving(false)
     }
@@ -95,10 +100,11 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
     if (!confirm("Delete this task?")) return
     try {
       await deleteTask(projectId, task.id)
+      toast.success("Task deleted")
       onDeleted()
       onClose()
     } catch {
-      // silent
+      toast.error("Failed to delete task")
     }
   }
 
@@ -109,11 +115,12 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
       const res = await createComment(projectId, task.id, newComment.trim())
       if (res.code === 0) {
         setNewComment("")
+        toast.success("Comment added")
         const listRes = await listComments(projectId, task.id)
         if (listRes.code === 0) setComments(listRes.data || [])
       }
     } catch {
-      // silent
+      toast.error("Failed to post comment")
     } finally {
       setSubmittingComment(false)
     }

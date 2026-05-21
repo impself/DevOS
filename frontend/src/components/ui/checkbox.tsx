@@ -2,6 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 interface CheckboxProps {
+  id?: string
   checked?: boolean | "indeterminate"
   onCheckedChange?: (checked: boolean) => void
   disabled?: boolean
@@ -9,14 +10,28 @@ interface CheckboxProps {
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ checked, onCheckedChange, disabled, className }, ref) => {
-    const isChecked = checked === true || checked === "indeterminate"
+  ({ checked: controlledChecked, onCheckedChange, disabled, className, id }, ref) => {
+    // Support both controlled (checked prop provided) and uncontrolled mode
+    const [internalChecked, setInternalChecked] = React.useState(false)
+    const isChecked = controlledChecked !== undefined
+      ? controlledChecked === true || controlledChecked === "indeterminate"
+      : internalChecked
+
+    const handleClick = () => {
+      if (disabled) return
+      const next = !isChecked
+      if (controlledChecked === undefined) {
+        setInternalChecked(next)
+      }
+      onCheckedChange?.(next)
+    }
 
     return (
       <button
         type="button"
         role="checkbox"
         aria-checked={isChecked}
+        id={id}
         disabled={disabled}
         ref={ref as React.Ref<HTMLButtonElement>}
         className={cn(
@@ -27,7 +42,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           isChecked && "bg-primary border-primary",
           className,
         )}
-        onClick={() => onCheckedChange?.(!isChecked)}
+        onClick={handleClick}
       >
         {isChecked && (
           <svg
@@ -37,10 +52,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             strokeWidth={3}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className={cn(
-              "size-3 text-primary-foreground mx-auto",
-              "animate-in fade-in zoom-in-50 duration-150",
-            )}
+            className="size-3 text-primary-foreground mx-auto"
           >
             <path d="M5 12l5 5L20 7" />
           </svg>

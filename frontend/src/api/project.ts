@@ -9,6 +9,8 @@ export interface Project {
   workspace_id: string
   created_at: string
   updated_at: string
+  task_total?: number
+  task_done?: number
 }
 
 // Member data shape for project membership

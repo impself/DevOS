@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// visitor 记录单个 IP 的访问计数和最后访问时间。
+// visitor 记录单个 IP 的访问计数和窗口起始时间。
 type visitor struct {
-	count    int
-	lastSeen time.Time
+	count       int
+	windowStart time.Time
 }
 
 // RateLimit 返回 IP 级固定窗口限流中间件。
@@ -26,8 +26,9 @@ func RateLimit(maxRequests int, interval time.Duration) gin.HandlerFunc {
 		for {
 			time.Sleep(interval)
 			mu.Lock()
+			now := time.Now()
 			for ip, v := range visitors {
-				if time.Since(v.lastSeen) > interval {
+				if now.Sub(v.windowStart) > interval {
 					delete(visitors, ip)
 				}
 			}
@@ -40,24 +41,23 @@ func RateLimit(maxRequests int, interval time.Duration) gin.HandlerFunc {
 		mu.Lock()
 		v, exists := visitors[ip]
 		if !exists {
-			// 首次访问
-			visitors[ip] = &visitor{count: 1, lastSeen: time.Now()}
+			// 首次访问，开新窗口
+			visitors[ip] = &visitor{count: 1, windowStart: time.Now()}
 			mu.Unlock()
 			c.Next()
 			return
 		}
 
-		// 窗口过期，重置计数
-		if time.Since(v.lastSeen) > interval {
+		// 窗口过期，重置计数和窗口起始时间
+		if time.Since(v.windowStart) > interval {
 			v.count = 1
-			v.lastSeen = time.Now()
+			v.windowStart = time.Now()
 			mu.Unlock()
 			c.Next()
 			return
 		}
 
 		v.count++
-		v.lastSeen = time.Now()
 		if v.count > maxRequests {
 			mu.Unlock()
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{

@@ -2,6 +2,7 @@ package project
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -90,6 +91,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	projects, total, err := h.svc.List(userID, page, pageSize)
 	if err != nil {
+		log.Printf("list projects error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "list projects failed"})
 		return
 	}

@@ -508,7 +508,7 @@ function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="anna@gmail.com"
+                placeholder="314@gmail.com"
                 value={email}
                 autoComplete="off"
                 onChange={(e) => setEmail(e.target.value)}

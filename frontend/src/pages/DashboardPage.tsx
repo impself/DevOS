@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/context/AuthContext"
+import { useToast } from "@/context/ToastContext"
 import { listProjects, createProject, deleteProject, type Project } from "@/api/project"
+import { SkeletonCard } from "@/components/ui/skeleton"
 
 // DashboardPage — shows project list with create/delete actions
 export default function DashboardPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === "admin"
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [projects, setProjects] = useState<Project[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -32,11 +35,11 @@ export default function DashboardPage() {
         setTotal(res.pagination?.total || 0)
       }
     } catch {
-      // 401 handled by axios interceptor
+      toast.error("Failed to load projects")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => { fetchProjects() }, [fetchProjects])
 
@@ -50,9 +53,10 @@ export default function DashboardPage() {
       setShowCreate(false)
       setNewName("")
       setNewDesc("")
+      toast.success("Project created")
       fetchProjects()
     } catch {
-      // error handled silently, could add toast later
+      toast.error("Failed to create project")
     } finally {
       setCreating(false)
     }
@@ -63,9 +67,10 @@ export default function DashboardPage() {
     if (!confirm("Delete this project? This cannot be undone.")) return
     try {
       await deleteProject(id)
+      toast.success("Project deleted")
       fetchProjects()
     } catch {
-      // silent
+      toast.error("Failed to delete project")
     }
   }
 
@@ -126,7 +131,9 @@ export default function DashboardPage() {
 
       {/* Project list */}
       {loading ? (
-        <div className="text-center py-20 text-muted-foreground">Loading...</div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-20">
           <FolderEmpty className="size-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -145,6 +152,21 @@ export default function DashboardPage() {
               <p className="text-xs text-muted-foreground mt-3">
                 {new Date(p.created_at).toLocaleDateString()}
               </p>
+              {/* Task progress */}
+              {p.task_total != null && p.task_total > 0 && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                    <span>{p.task_done ?? 0} of {p.task_total} tasks</span>
+                    <span>{Math.round(((p.task_done ?? 0) / p.task_total) * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${((p.task_done ?? 0) / p.task_total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               {/* Action buttons */}
               <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button

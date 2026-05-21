@@ -5,8 +5,9 @@ import {
   type DragStartEvent, type DragEndEvent,
 } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { CircleDot } from "lucide-react"
+
 import { updateTask, type Task } from "@/api/task"
+import { useToast } from "@/context/ToastContext"
 import SortableTaskCard from "./SortableTaskCard"
 
 const columns = [
@@ -36,6 +37,7 @@ interface TaskKanbanProps {
 }
 
 export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onRefresh }: TaskKanbanProps) {
+  const { toast } = useToast()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
 
@@ -58,32 +60,31 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
     if (!over || !canEdit) return
 
     const taskId = String(active.id)
-    // over.id is either a column id or another task id
     const overId = String(over.id)
     const targetColumn = columns.find((c) => c.id === overId)
 
     if (targetColumn) {
-      // dropped on a column
       const task = tasks.find((t) => t.id === taskId)
       if (task && task.status !== targetColumn.id) {
         try {
           await updateTask(projectId, taskId, { status: targetColumn.id })
+          toast.success(`Task moved to ${targetColumn.label}`)
           onRefresh()
         } catch {
-          // silent
+          toast.error("Failed to move task")
         }
       }
     } else {
-      // dropped on another task — find the column of that task
       const targetTask = tasks.find((t) => t.id === overId)
       if (targetTask && targetTask.id !== taskId) {
         const task = tasks.find((t) => t.id === taskId)
         if (task && task.status !== targetTask.status) {
           try {
             await updateTask(projectId, taskId, { status: targetTask.status })
+            toast.success("Task moved")
             onRefresh()
           } catch {
-            // silent
+            toast.error("Failed to move task")
           }
         }
       }
@@ -101,7 +102,7 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
         {columns.map((col) => {
           const colTasks = tasksByStatus(col.id)
           return (
-            <div key={col.id} className="flex-shrink-0 w-64">
+            <div key={col.id} className="shrink-0 w-64">
               {/* Column header */}
               <div className="flex items-center gap-2 mb-2 px-1">
                 <div className={`size-2 rounded-full ${col.color}`} />
@@ -116,7 +117,7 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
                 strategy={verticalListSortingStrategy}
               >
                 <div
-                  className="min-h-[200px] rounded-lg bg-muted/30 p-2 space-y-2"
+                  className="min-h-50 rounded-lg bg-muted/30 p-2 space-y-2"
                   data-column={col.id}
                 >
                   {colTasks.length === 0 && !activeId && (
@@ -140,7 +141,7 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
       {/* Drag overlay */}
       <DragOverlay>
         {activeTask ? (
-          <div className="bg-card border border-border rounded-md p-3 shadow-lg max-w-[240px]">
+          <div className="bg-card border border-border rounded-md p-3 shadow-lg max-w-60">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-bold text-muted-foreground bg-muted px-1 rounded">
                 {typeLabel[activeTask.type] || "T"}
@@ -157,5 +158,4 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
   )
 }
 
-// Re-export priority dot for card
 export { priorityDot, typeLabel }

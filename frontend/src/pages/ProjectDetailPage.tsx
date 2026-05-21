@@ -5,26 +5,27 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/context/AuthContext"
+import { useToast } from "@/context/ToastContext"
 import {
   getProject, updateProject, listMembers, removeMember, updateMemberRole,
   type Project, type Member,
 } from "@/api/project"
 import {
-  listTasks, createTask, updateTask, deleteTask,
-  type Task, type CreateTaskReq, type TaskFilters,
+  listTasks, deleteTask, updateTask,
+  type Task, type TaskFilters,
 } from "@/api/task"
 import MemberPicker from "@/components/MemberPicker"
 import TaskKanban from "@/components/TaskKanban"
 import TaskDetailDrawer from "@/components/TaskDetailDrawer"
+import CreateTaskModal from "@/components/CreateTaskModal"
+import { SkeletonProjectDetail } from "@/components/ui/skeleton"
 
-// Priority badge color map
 const priorityConfig: Record<string, { label: string; cls: string }> = {
   high: { label: "High", cls: "bg-red-500/10 text-red-600" },
   medium: { label: "Medium", cls: "bg-yellow-500/10 text-yellow-600" },
   low: { label: "Low", cls: "bg-blue-500/10 text-blue-600" },
 }
 
-// Status badge color map
 const statusConfig: Record<string, { label: string; cls: string }> = {
   backlog: { label: "Backlog", cls: "bg-muted text-muted-foreground" },
   todo: { label: "To Do", cls: "bg-blue-500/10 text-blue-600" },
@@ -34,7 +35,6 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
   cancelled: { label: "Cancelled", cls: "bg-muted text-muted-foreground line-through" },
 }
 
-// Type badge
 const typeConfig: Record<string, { label: string; cls: string }> = {
   task: { label: "Task", cls: "bg-primary/10 text-primary" },
   bug: { label: "Bug", cls: "bg-red-500/10 text-red-600" },
@@ -46,6 +46,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { toast } = useToast()
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<Member[]>([])
@@ -57,26 +58,19 @@ export default function ProjectDetailPage() {
   const canEdit = isAdmin
   const canManageMembers = isAdmin
 
-  // Edit mode state
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState("")
   const [editDesc, setEditDesc] = useState("")
   const [saving, setSaving] = useState(false)
 
-  // Add member state
   const [showMemberPicker, setShowMemberPicker] = useState(false)
-
-  // Task state
   const [showCreateTask, setShowCreateTask] = useState(false)
-  const [newTask, setNewTask] = useState<CreateTaskReq>({ title: "" })
   const [taskSearch, setTaskSearch] = useState("")
   const [taskFilter, setTaskFilter] = useState<TaskFilters>({})
   const [taskPage, setTaskPage] = useState(1)
-  const [creatingTask, setCreatingTask] = useState(false)
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list")
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
-  // Fetch project detail and member list
   const fetchData = useCallback(async () => {
     if (!id) return
     setLoading(true)
@@ -89,13 +83,12 @@ export default function ProjectDetailPage() {
       }
       if (memRes.code === 0) setMembers(memRes.data || [])
     } catch {
-      // 401 handled by interceptor
+      toast.error("Failed to load project")
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, toast])
 
-  // Fetch tasks with current filters
   const fetchTasks = useCallback(async () => {
     if (!id) return
     try {
@@ -110,14 +103,13 @@ export default function ProjectDetailPage() {
         setTaskTotal(res.pagination?.total || 0)
       }
     } catch {
-      // silent
+      toast.error("Failed to load tasks")
     }
-  }, [id, taskFilter, taskSearch, taskPage])
+  }, [id, taskFilter, taskSearch, taskPage, toast])
 
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchTasks() }, [fetchTasks])
 
-  // Handle save edits
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!id) return
@@ -127,81 +119,65 @@ export default function ProjectDetailPage() {
       if (res.code === 0) {
         setProject(res.data)
         setEditing(false)
+        toast.success("Project saved")
       }
     } catch {
-      // silent
+      toast.error("Failed to save project")
     } finally {
       setSaving(false)
     }
   }
 
-  // Handle role change
   const handleRoleChange = async (userId: string, newRole: string) => {
     if (!id) return
     try {
       const res = await updateMemberRole(id, userId, newRole)
-      if (res.code === 0) fetchData()
+      if (res.code === 0) {
+        toast.success("Role updated")
+        fetchData()
+      }
     } catch {
-      // silent
+      toast.error("Failed to update role")
     }
   }
 
-  // Handle remove member
   const handleRemoveMember = async (userId: string) => {
     if (!id) return
     if (!confirm("Remove this member?")) return
     try {
       await removeMember(id, userId)
+      toast.success("Member removed")
       fetchData()
     } catch {
-      // silent
+      toast.error("Failed to remove member")
     }
   }
 
-  // Handle create task
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!id || !newTask.title.trim()) return
-    setCreatingTask(true)
-    try {
-      const res = await createTask(id, newTask)
-      if (res.code === 0) {
-        setShowCreateTask(false)
-        setNewTask({ title: "" })
-        fetchTasks()
-      }
-    } catch {
-      // silent
-    } finally {
-      setCreatingTask(false)
-    }
-  }
-
-  // Handle task status change
   const handleStatusChange = async (taskId: string, status: string) => {
     if (!id) return
     try {
       await updateTask(id, taskId, { status })
+      toast.success("Status updated")
       fetchTasks()
     } catch {
-      // silent
+      toast.error("Failed to update status")
     }
   }
 
-  // Handle delete task
   const handleDeleteTask = async (taskId: string) => {
     if (!id) return
     if (!confirm("Delete this task?")) return
     try {
       await deleteTask(id, taskId)
+      toast.success("Task deleted")
       fetchTasks()
     } catch {
-      // silent
+      toast.error("Failed to delete task")
     }
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading...</div>
+    return <SkeletonProjectDetail />
   }
 
   if (!project) {
@@ -215,7 +191,6 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl mx-auto">
-      {/* Back button */}
       <button
         type="button"
         onClick={() => navigate("/dashboard")}
@@ -269,7 +244,6 @@ export default function ProjectDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Tasks ({taskTotal})</h2>
           <div className="flex items-center gap-2">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <Input
@@ -279,7 +253,6 @@ export default function ProjectDetailPage() {
                 className="h-8 w-48 pl-8 text-sm"
               />
             </div>
-            {/* Status filter */}
             <select
               value={taskFilter.status || ""}
               onChange={(e) => setTaskFilter((f) => ({ ...f, status: e.target.value || undefined }))}
@@ -293,7 +266,6 @@ export default function ProjectDetailPage() {
               <option value="done">Done</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            {/* Priority filter */}
             <select
               value={taskFilter.priority || ""}
               onChange={(e) => setTaskFilter((f) => ({ ...f, priority: e.target.value || undefined }))}
@@ -310,7 +282,6 @@ export default function ProjectDetailPage() {
                 New Task
               </Button>
             )}
-            {/* View toggle */}
             <div className="flex border border-border rounded-md overflow-hidden">
               <button
                 type="button"
@@ -331,48 +302,6 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* Create task form */}
-        {showCreateTask && (
-          <form onSubmit={handleCreateTask} className="mb-4 p-4 border border-border rounded-md bg-muted/30 space-y-3">
-            <Input
-              value={newTask.title}
-              onChange={(e) => setNewTask((t) => ({ ...t, title: e.target.value }))}
-              placeholder="Task title"
-              required
-              className="h-9 text-sm"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <select
-                value={newTask.type || "task"}
-                onChange={(e) => setNewTask((t) => ({ ...t, type: e.target.value }))}
-                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-              >
-                <option value="task">Task</option>
-                <option value="bug">Bug</option>
-                <option value="feature">Feature</option>
-                <option value="improvement">Improvement</option>
-              </select>
-              <select
-                value={newTask.priority || "medium"}
-                onChange={(e) => setNewTask((t) => ({ ...t, priority: e.target.value }))}
-                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-              >
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="high">High</option>
-              </select>
-              <div className="flex-1" />
-              <Button type="submit" size="sm" disabled={creatingTask} className="cursor-pointer">
-                {creatingTask ? "Creating..." : "Create"}
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { setShowCreateTask(false); setNewTask({ title: "" }) }} className="cursor-pointer">
-                Cancel
-              </Button>
-            </div>
-          </form>
-        )}
 
         {/* Task view */}
         {tasks.length === 0 ? (
@@ -400,7 +329,6 @@ export default function ProjectDetailPage() {
                   className="flex items-center gap-3 py-3 group cursor-pointer hover:bg-muted/30 transition-colors rounded px-1"
                   onClick={() => setSelectedTask(t)}
                 >
-                  {/* Status select */}
                   <select
                     value={t.status}
                     onChange={(e) => { e.stopPropagation(); handleStatusChange(t.id, e.target.value) }}
@@ -415,7 +343,6 @@ export default function ProjectDetailPage() {
                     <option value="cancelled">Cancelled</option>
                   </select>
 
-                  {/* Task info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${tc.cls}`}>{tc.label}</span>
@@ -434,7 +361,6 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   {canEdit && (
                     <button
                       type="button"
@@ -451,7 +377,6 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
-        {/* Pagination (list mode only) */}
         {viewMode === "list" && taskTotal > 20 && (
           <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
             <Button variant="outline" size="sm" disabled={taskPage <= 1} onClick={() => setTaskPage((p) => p - 1)} className="cursor-pointer">
@@ -477,7 +402,6 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
-        {/* Member list */}
         {members.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No members found</p>
         ) : (
@@ -534,7 +458,7 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
-      {/* Member picker modal */}
+      {/* Modals */}
       {showMemberPicker && id && (
         <MemberPicker
           projectId={id}
@@ -544,7 +468,15 @@ export default function ProjectDetailPage() {
         />
       )}
 
-      {/* Task detail drawer */}
+      {showCreateTask && id && (
+        <CreateTaskModal
+          projectId={id}
+          members={members}
+          onClose={() => setShowCreateTask(false)}
+          onCreated={fetchTasks}
+        />
+      )}
+
       {selectedTask && id && (
         <TaskDetailDrawer
           task={selectedTask}
