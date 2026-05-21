@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/context/ToastContext"
 import { listProjects, createProject, deleteProject, type Project } from "@/api/project"
 import { SkeletonCard } from "@/components/ui/skeleton"
+import ShowcaseCard from "@/components/showcase/Card"
 
 // DashboardPage — shows project list with create/delete actions
 export default function DashboardPage() {
@@ -142,53 +143,40 @@ export default function DashboardPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((p) => (
-            <div
+            <ShowcaseCard
               key={p.id}
-              className="group relative border border-border rounded-lg p-5 hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
+              title={p.name}
+              description={p.description || "No description"}
+              meta={new Date(p.created_at).toLocaleDateString()}
+              progress={
+                p.task_total != null && p.task_total > 0
+                  ? { done: p.task_done ?? 0, total: p.task_total }
+                  : undefined
+              }
               onClick={() => navigate(`/projects/${p.id}`)}
-            >
-              <h3 className="font-semibold text-sm mb-1 pr-8">{p.name}</h3>
-              <p className="text-xs text-muted-foreground line-clamp-2">{p.description || "No description"}</p>
-              <p className="text-xs text-muted-foreground mt-3">
-                {new Date(p.created_at).toLocaleDateString()}
-              </p>
-              {/* Task progress */}
-              {p.task_total != null && p.task_total > 0 && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>{p.task_done ?? 0} of {p.task_total} tasks</span>
-                    <span>{Math.round(((p.task_done ?? 0) / p.task_total) * 100)}%</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${((p.task_done ?? 0) / p.task_total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              {/* Action buttons */}
-              <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); navigate(`/projects/${p.id}`); }}
-                  className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer"
-                  title="Open"
-                >
-                  <ExternalLink className="size-3.5" />
-                </button>
-                {isAdmin && (
+              actions={
+                <>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
-                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
-                    title="Delete"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/projects/${p.id}`); }}
+                    className="action-btn"
+                    title="Open"
                   >
-                    <Trash2 className="size-3.5" />
+                    <ExternalLink className="size-3.5" />
                   </button>
-                )}
-              </div>
-            </div>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                      className="action-btn danger"
+                      title="Delete"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </>
+              }
+            />
           ))}
         </div>
       )}

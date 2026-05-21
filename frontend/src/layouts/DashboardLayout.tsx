@@ -1,7 +1,100 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Link, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
-import { LogOut, FolderKanban, Settings, Sparkles, Menu, Moon, Sun } from "lucide-react"
+import {
+  LogOut,
+  LayoutDashboard,
+  FolderKanban,
+  Settings,
+  Sparkles,
+  Menu,
+  Moon,
+  Sun,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react"
+
+// Sidebar section header — uppercase, muted, small; hidden when collapsed
+function SectionHeader({ label, collapsed }: { label: string; collapsed?: boolean }) {
+  if (collapsed) return <div className="pt-4" />
+  return (
+    <div className="px-4 pt-5 pb-2">
+      <span className="text-[11px] font-semibold tracking-widest text-muted-foreground/60 uppercase">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+// Sidebar nav link with active state indicator
+function NavLink({
+  to,
+  icon: Icon,
+  label,
+  badge,
+  active,
+  onClick,
+  collapsed,
+}: {
+  to: string
+  icon: React.ElementType
+  label: string
+  badge?: number
+  active: boolean
+  onClick?: () => void
+  collapsed?: boolean
+}) {
+  if (collapsed) {
+    return (
+      <Link
+        to={to}
+        onClick={onClick}
+        title={label}
+        className={`
+          group relative flex items-center justify-center py-2 mx-2 rounded-lg
+          transition-all duration-150 cursor-pointer
+          ${
+            active
+              ? "bg-primary/8 text-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          }
+        `}
+      >
+        {active && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 rounded-r-full bg-primary" />
+        )}
+        <Icon className={`size-4.5 ${active ? "text-primary" : ""}`} />
+      </Link>
+    )
+  }
+
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={`
+        group relative flex items-center gap-3 px-3 py-2 mx-2 rounded-lg text-sm font-medium
+        transition-all duration-150 cursor-pointer
+        ${
+          active
+            ? "bg-primary/8 text-foreground shadow-sm"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        }
+      `}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.75 h-5 rounded-r-full bg-primary" />
+      )}
+      <Icon className={`size-4.5 ${active ? "text-primary" : ""}`} />
+      <span className="flex-1">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="min-w-4.5 h-4.5 flex items-center justify-center rounded-full bg-destructive/10 text-destructive text-[10px] font-bold px-1">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </Link>
+  )
+}
 
 // DashboardLayout — sidebar + top bar shell for all authenticated pages
 export default function DashboardLayout() {
@@ -11,15 +104,24 @@ export default function DashboardLayout() {
   const initial = displayName.charAt(0).toUpperCase()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("devos_sidebar_collapsed") === "true"
+  })
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false
     return document.documentElement.classList.contains("dark")
   })
 
-  // Close mobile sidebar on route change
-  useEffect(() => {
-    setSidebarOpen(false)
-  }, [location.pathname])
+  const closeSidebar = () => setSidebarOpen(false)
+
+  const toggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem("devos_sidebar_collapsed", String(next))
+      return next
+    })
+  }
 
   const toggleTheme = () => {
     setDark((prev) => {
@@ -30,118 +132,142 @@ export default function DashboardLayout() {
     })
   }
 
-  const navLinks = (
-    <>
-      <Link
-        to="/dashboard"
-        className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-      >
-        <FolderKanban className="size-4" />
-        Projects
-      </Link>
-      <Link
-        to="/settings"
-        className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-      >
-        <Settings className="size-4" />
-        Settings
-      </Link>
-    </>
-  )
+  const isActive = (path: string) => {
+    if (path === "/dashboard") return location.pathname === "/dashboard"
+    return location.pathname.startsWith(path)
+  }
 
-  const userSection = (
-    <div className="flex items-center gap-3 px-3 py-2">
-      {user?.avatar ? (
-        <img src={user.avatar} alt={displayName} className="size-8 rounded-full object-cover" />
-      ) : (
-        <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-          {initial}
+  const renderNavContent = (onNavigate?: () => void) => (
+    <>
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 h-14 shrink-0" style={collapsed ? { padding: "0 0.625rem" } : { padding: "0 1.25rem" }}>
+        <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Sparkles className="size-4 text-primary" />
         </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium truncate">{displayName}</p>
-          {user?.role === "admin" && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold">
-              ADMIN
-            </span>
+        {!collapsed && <span className="font-semibold text-sm tracking-tight">DevOS</span>}
+      </div>
+
+      {/* Main section */}
+      <SectionHeader label="Main" collapsed={collapsed} />
+      <div className="space-y-0.5">
+        <NavLink
+          to="/dashboard"
+          icon={LayoutDashboard}
+          label="Dashboard"
+          active={isActive("/dashboard")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/dashboard"
+          icon={FolderKanban}
+          label="Projects"
+          active={isActive("/projects")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+      </div>
+
+      {/* Account section */}
+      <SectionHeader label="Account" collapsed={collapsed} />
+      <div className="space-y-0.5">
+        <NavLink
+          to="/settings"
+          icon={Settings}
+          label="Settings"
+          active={isActive("/settings")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Theme toggle */}
+      <div className="px-2 py-2">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={collapsed ? (dark ? "Light Mode" : "Dark Mode") : undefined}
+          className={`flex items-center gap-3 py-2 w-full rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer ${
+            collapsed ? "justify-center px-0" : "px-3"
+          }`}
+        >
+          {dark ? <Sun className="size-4.5 shrink-0" /> : <Moon className="size-4.5 shrink-0" />}
+          {!collapsed && <span>{dark ? "Light Mode" : "Dark Mode"}</span>}
+        </button>
+      </div>
+
+      {/* User profile */}
+      <div className="border-t border-border p-3">
+        <div className={`flex items-center gap-3 py-1.5 ${collapsed ? "justify-center px-0" : "px-2"}`}>
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt={displayName}
+              className="size-9 rounded-full object-cover ring-2 ring-border shrink-0"
+            />
+          ) : (
+            <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary ring-2 ring-border shrink-0">
+              {initial}
+            </div>
+          )}
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium truncate">{displayName}</p>
+                {user?.role === "admin" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-semibold">
+                    ADMIN
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
+            </div>
+          )}
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={logout}
+              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent p-1 shrink-0"
+              title="Logout"
+            >
+              <LogOut className="size-4" />
+            </button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
       </div>
-      <button
-        type="button"
-        onClick={logout}
-        className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-        title="Logout"
-      >
-        <LogOut className="size-4" />
-      </button>
-    </div>
+    </>
   )
 
   return (
     <div className="min-h-screen flex bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-60 flex-col border-r border-border bg-card">
-        {/* Brand */}
-        <div className="flex items-center gap-2 px-5 h-14 border-b border-border">
-          <div className="size-7 rounded-md bg-primary/10 flex items-center justify-center">
-            <Sparkles className="size-3.5 text-primary" />
-          </div>
-          <span className="font-semibold text-sm">DevOS</span>
-        </div>
+      <aside
+        className={`hidden lg:flex relative flex-col bg-card/50 backdrop-blur-xl border-r border-border shadow-sm transition-all duration-200 ${
+          collapsed ? "w-16" : "w-60"
+        }`}
+      >
+        {renderNavContent()}
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          {navLinks}
-        </nav>
-
-        {/* Theme toggle */}
-        <div className="px-3 py-2 border-t border-border">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-          >
-            {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            {dark ? "Light Mode" : "Dark Mode"}
-          </button>
-        </div>
-
-        {/* User */}
-        <div className="border-t border-border p-3">
-          {userSection}
-        </div>
+        {/* Collapse toggle — absolutely positioned at brand row end */}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="absolute top-4 right-0 translate-x-1/2 z-10 size-6 rounded-full border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer shadow-sm"
+        >
+          {collapsed ? <PanelLeftOpen className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
+        </button>
       </aside>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-60 h-full bg-card border-r border-border flex flex-col animate-slide-in-left">
-            <div className="flex items-center gap-2 px-5 h-14 border-b border-border">
-              <div className="size-7 rounded-md bg-primary/10 flex items-center justify-center">
-                <Sparkles className="size-3.5 text-primary" />
-              </div>
-              <span className="font-semibold text-sm">DevOS</span>
-            </div>
-            <nav className="flex-1 py-4 px-3 space-y-1">
-              {navLinks}
-            </nav>
-            <div className="px-3 py-2 border-t border-border">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-              >
-                {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                {dark ? "Light Mode" : "Dark Mode"}
-              </button>
-            </div>
-            <div className="border-t border-border p-3">
-              {userSection}
-            </div>
+          <div className="absolute inset-0 bg-black/50" onClick={closeSidebar} />
+          <aside className="relative w-60 h-full bg-card border-r border-border flex flex-col animate-slide-in-left shadow-xl">
+            {renderNavContent(closeSidebar)}
           </aside>
         </div>
       )}
