@@ -19,6 +19,7 @@
 | 文件 | 知识点 |
 |------|--------|
 | [postgresql.md](database/postgresql.md) | PostgreSQL：特性、索引、JSON、全文搜索、UPSERT |
+| [many-to-many.md](database/many-to-many.md) | 多对多关系：关联表设计、复合主键、批量查询、GORM 陷阱 |
 | [redis.md](database/redis.md) | Redis：数据结构、Streams、分布式锁、缓存策略 |
 | [database-design.md](database/database-design.md) | 数据库设计：范式、反范式、索引策略、命名规范 |
 | [pgvector.md](database/pgvector.md) | pgvector：向量检索、RAG、embedding 存储 |

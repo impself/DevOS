@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react"
-import { X, Trash2, Send } from "lucide-react"
+import { X, Trash2, Send, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   updateTask, deleteTask, type Task, type UpdateTaskReq,
 } from "@/api/task"
 import { createComment, listComments, type Comment } from "@/api/comment"
+import { listTags, createTag, setTaskTags, type Tag } from "@/api/tag"
 import type { Member } from "@/api/project"
 import { useToast } from "@/context/ToastContext"
 
@@ -58,6 +59,19 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
   const [newComment, setNewComment] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
 
+  // Tags state
+  const [projectTags, setProjectTags] = useState<Tag[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [showNewTag, setShowNewTag] = useState(false)
+  const [newTagName, setNewTagName] = useState("")
+  const [newTagColor, setNewTagColor] = useState("#6B7280")
+
+  const presetColors = [
+    "#EF4444", "#F97316", "#F59E0B", "#84CC16", "#22C55E",
+    "#14B8A6", "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6",
+    "#A855F7", "#EC4899", "#6B7280",
+  ]
+
   useEffect(() => {
     setTitle(task.title)
     setDescription(task.description)
@@ -66,6 +80,7 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
     setType(task.type)
     setAssigneeId(task.assignee_id || "")
     setDueDate(task.due_date ? task.due_date.slice(0, 10) : "")
+    setSelectedTagIds(task.tags?.map((t) => t.id) || [])
     setDirty(false)
     // Load comments
     listComments(projectId, task.id).then((res) => {
@@ -73,6 +88,10 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
     }).catch(() => {
       toast.error("Failed to load comments")
     })
+    // Load project tags
+    listTags(projectId).then((res) => {
+      if (res.code === 0) setProjectTags(res.data || [])
+    }).catch(() => {})
   }, [task.id, projectId, toast])
 
   const markDirty = () => setDirty(true)
@@ -123,6 +142,39 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
       toast.error("Failed to post comment")
     } finally {
       setSubmittingComment(false)
+    }
+  }
+
+  const toggleTag = async (tagId: string) => {
+    const next = selectedTagIds.includes(tagId)
+      ? selectedTagIds.filter((id) => id !== tagId)
+      : [...selectedTagIds, tagId]
+    setSelectedTagIds(next)
+    try {
+      await setTaskTags(projectId, task.id, next)
+      toast.success("Tags updated")
+      onUpdated()
+    } catch {
+      toast.error("Failed to update tags")
+    }
+  }
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return
+    try {
+      const res = await createTag(projectId, { name: newTagName.trim(), color: newTagColor })
+      if (res.code === 0) {
+        const created = res.data as Tag
+        setProjectTags((prev) => [...prev, created])
+        setSelectedTagIds((prev) => [...prev, created.id])
+        await setTaskTags(projectId, task.id, [...selectedTagIds, created.id])
+        setNewTagName("")
+        setShowNewTag(false)
+        toast.success("Tag created")
+        onUpdated()
+      }
+    } catch {
+      toast.error("Failed to create tag")
     }
   }
 
@@ -240,6 +292,65 @@ export default function TaskDetailDrawer({ task, projectId, canEdit, members, on
             <label className="text-xs text-muted-foreground mb-1 block">Created by</label>
             <p className="text-sm">{task.creator_nickname || task.creator_name}</p>
           </div>
+
+          {/* Tags */}
+          {canEdit && (
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Tags</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {projectTags.map((t) => {
+                  const selected = selectedTagIds.includes(t.id)
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleTag(t.id)}
+                      className="text-[11px] px-2 py-0.5 rounded-full font-medium cursor-pointer transition-all border"
+                      style={{
+                        backgroundColor: selected ? t.color + "25" : "transparent",
+                        color: selected ? t.color : "var(--muted-foreground)",
+                        borderColor: selected ? t.color + "50" : "var(--border)",
+                      }}
+                    >
+                      {t.name}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowNewTag(!showNewTag)}
+                  className="text-[11px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors"
+                >
+                  <Plus className="size-3 inline -mt-px" /> New
+                </button>
+              </div>
+              {showNewTag && (
+                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/30 border border-border">
+                  <Input
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    placeholder="Tag name"
+                    className="h-7 text-xs flex-1"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateTag() }}
+                  />
+                  <div className="flex gap-1">
+                    {presetColors.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewTagColor(c)}
+                        className={`size-4 rounded-full cursor-pointer border-2 transition-all ${newTagColor === c ? "scale-125 border-foreground" : "border-transparent"}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleCreateTag} disabled={!newTagName.trim()} className="h-7 text-xs cursor-pointer">
+                    Add
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Description */}
           <div>

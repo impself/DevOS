@@ -8,7 +8,6 @@ const Form = () => {
                 <form action className="form">
                     <input required className="input" type="email" name="email" id="email" placeholder="E-mail" />
                     <input required className="input" type="password" name="password" id="password" placeholder="Password" />
-                    <span className="forgot-password"><a href="#">Forgot Password ?</a></span>
                     <input className="login-button" type="submit" defaultValue="Sign In" />
                 </form>
                 <div className="social-account-container">
@@ -83,17 +82,7 @@ const StyledWrapper = styled.div`
     border-inline: 2px solid #12B1D1;
   }
 
-  .form .forgot-password {
-    display: block;
-    margin-top: 10px;
-    margin-left: 10px;
-  }
-
-  .form .forgot-password a {
-    font-size: 11px;
-    color: #0099ff;
-    text-decoration: none;
-  }
+ 
 
   .form .login-button {
     display: block;

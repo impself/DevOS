@@ -5,6 +5,7 @@ package task
 import (
 	"time"
 
+	"github.com/impself/DevOS/internal/tag"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +36,7 @@ type Task struct {
 	CreatorName      string `gorm:"->" json:"creator_name,omitempty"`
 	CreatorNickname  string `gorm:"->" json:"creator_nickname,omitempty"`
 	AssigneeEmail    string `gorm:"->" json:"assignee_email,omitempty"`
+	Tags             []tag.Tag `gorm:"-" json:"tags,omitempty"`
 }
 
 // TableName 指定 Task 对应的数据库表名。

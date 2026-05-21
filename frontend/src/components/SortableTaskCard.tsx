@@ -44,6 +44,20 @@ export default function SortableTaskCard({ task, disabled, onClick }: SortableTa
         </span>
         <span className="text-xs font-medium truncate flex-1">{task.title}</span>
       </div>
+      {/* Tags row */}
+      {task.tags && task.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          {task.tags.map((t) => (
+            <span
+              key={t.id}
+              className="text-[10px] px-1.5 py-px rounded-full font-medium"
+              style={{ backgroundColor: t.color + "20", color: t.color }}
+            >
+              {t.name}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         {task.priority && priorityDot[task.priority] && (
           <div className={`size-1.5 rounded-full ${priorityDot[task.priority]}`} title={task.priority} />

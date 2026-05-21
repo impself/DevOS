@@ -6,16 +6,24 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impself/DevOS/internal/tag"
 )
+
+// TagFetcher 由 tag.Service 实现，用于批量获取任务标签。
+type TagFetcher interface {
+	GetTagsByTaskIDs(taskIDs []string) (map[string][]tag.Tag, error)
+	GetTagsByTaskID(taskID string) ([]tag.Tag, error)
+}
 
 // Handler 处理任务相关的 HTTP 请求。
 type Handler struct {
-	svc Service
+	svc        Service
+	tagFetcher TagFetcher
 }
 
 // NewHandler 创建任务 Handler 实例。
-func NewHandler(svc Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc Service, tagFetcher TagFetcher) *Handler {
+	return &Handler{svc: svc, tagFetcher: tagFetcher}
 }
 
 // createTaskReq 创建任务的请求体。
@@ -91,6 +99,7 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 
+	h.enrichTask(t)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": t})
 }
 
@@ -196,9 +205,42 @@ func (h *Handler) List(c *gin.Context) {
 		return
 	}
 
+	h.enrichTasks(tasks)
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0, "message": "success",
 		"data": tasks,
 		"pagination": gin.H{"page": page, "page_size": pageSize, "total": total},
 	})
+}
+
+// enrichTask 为单个任务填充标签数据。
+func (h *Handler) enrichTask(t *Task) {
+	if h.tagFetcher == nil {
+		return
+	}
+	tags, err := h.tagFetcher.GetTagsByTaskID(t.ID)
+	if err == nil {
+		t.Tags = tags
+	}
+}
+
+// enrichTasks 批量为任务列表填充标签数据。
+func (h *Handler) enrichTasks(tasks []Task) {
+	if h.tagFetcher == nil || len(tasks) == 0 {
+		return
+	}
+	ids := make([]string, len(tasks))
+	for i, t := range tasks {
+		ids[i] = t.ID
+	}
+	tagMap, err := h.tagFetcher.GetTagsByTaskIDs(ids)
+	if err != nil {
+		return
+	}
+	for i := range tasks {
+		if t, ok := tagMap[tasks[i].ID]; ok {
+			tasks[i].Tags = t
+		}
+	}
 }
