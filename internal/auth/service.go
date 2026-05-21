@@ -1,20 +1,12 @@
 package auth
 
 import (
-	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/impself/DevOS/pkg/config"
 	"github.com/impself/DevOS/pkg/middleware"
 	"golang.org/x/crypto/bcrypt"
-)
-
-// 业务错误定义，handler 层通过 errors.Is 判断返回不同状态码。
-var (
-	ErrUserExists       = errors.New("user already exists")
-	ErrUsernameExists   = errors.New("username already taken")
-	ErrInvalidCreds     = errors.New("invalid email or password")
 )
 
 // Service 认证业务接口。
@@ -131,7 +123,7 @@ func (s *service) ValidateToken(tokenStr string) (*middleware.Claims, error) {
 		return []byte(s.jwtCfg.Secret), nil
 	})
 	if err != nil || !token.Valid {
-		return nil, errors.New("invalid token")
+		return nil, ErrInvalidToken
 	}
 	return claims, nil
 }

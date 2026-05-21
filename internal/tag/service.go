@@ -1,18 +1,10 @@
 package tag
 
 import (
-	"errors"
-
 	"github.com/impself/DevOS/internal/auth"
 )
 
-var (
-	ErrTagNotFound  = errors.New("tag not found")
-	ErrNoPermission = errors.New("no permission")
-	ErrInvalidColor = errors.New("invalid color, must be hex format like #FF5733")
-)
-
-// validColors 预设可选颜色。
+// PresetColors 预设可选颜色。
 var PresetColors = []string{
 	"#EF4444", "#F97316", "#F59E0B", "#84CC16",
 	"#22C55E", "#14B8A6", "#06B6D4", "#3B82F6",

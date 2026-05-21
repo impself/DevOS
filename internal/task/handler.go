@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/impself/DevOS/internal/tag"
+	"github.com/impself/DevOS/pkg/response"
 )
 
 // TagFetcher 由 tag.Service 实现，用于批量获取任务标签。
@@ -56,7 +57,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req createTaskReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
@@ -77,11 +78,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 	result, err := h.svc.Create(t)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "create task failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "create task failed")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "success", "data": result})
+	response.Created(c, result)
 }
 
 // Get 处理 GET /projects/:id/tasks/:taskID，查询单个任务。
@@ -92,15 +93,15 @@ func (h *Handler) Get(c *gin.Context) {
 	t, err := h.svc.GetByID(taskID, userID)
 	if err != nil {
 		if errors.Is(err, ErrTaskNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": "TASK_NOT_FOUND", "message": "task not found"})
+			response.Error(c, http.StatusNotFound, response.CodeTaskNotFound, "task not found")
 			return
 		}
-		c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+		response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		return
 	}
 
 	h.enrichTask(t)
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": t})
+	response.Success(c, t)
 }
 
 // Update 处理 PUT /projects/:id/tasks/:taskID，更新任务。
@@ -110,7 +111,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req updateTaskReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
@@ -147,16 +148,16 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrTaskNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "TASK_NOT_FOUND", "message": "task not found"})
+			response.Error(c, http.StatusNotFound, response.CodeTaskNotFound, "task not found")
 		case errors.Is(err, ErrNoPermission):
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"code": "BAD_REQUEST", "message": err.Error()})
+			response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": result})
+	response.Success(c, result)
 }
 
 // Delete 处理 DELETE /projects/:id/tasks/:taskID，删除任务。
@@ -167,16 +168,16 @@ func (h *Handler) Delete(c *gin.Context) {
 	if err := h.svc.Delete(taskID, userID); err != nil {
 		switch {
 		case errors.Is(err, ErrTaskNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "TASK_NOT_FOUND", "message": "task not found"})
+			response.Error(c, http.StatusNotFound, response.CodeTaskNotFound, "task not found")
 		case errors.Is(err, ErrNoPermission):
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "delete task failed"})
+			response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "delete task failed")
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
 
 // List 处理 GET /projects/:id/tasks，查询任务列表。
@@ -201,17 +202,12 @@ func (h *Handler) List(c *gin.Context) {
 
 	tasks, total, err := h.svc.List(projectID, userID, filters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "list tasks failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "list tasks failed")
 		return
 	}
 
 	h.enrichTasks(tasks)
-
-	c.JSON(http.StatusOK, gin.H{
-		"code": 0, "message": "success",
-		"data": tasks,
-		"pagination": gin.H{"page": page, "page_size": pageSize, "total": total},
-	})
+	response.SuccessWithPagination(c, tasks, page, pageSize, total)
 }
 
 // enrichTask 为单个任务填充标签数据。

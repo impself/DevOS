@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impself/DevOS/pkg/response"
 )
 
 // Handler 处理标签相关的 HTTP 请求。
@@ -36,7 +37,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req createTagReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
@@ -49,14 +50,14 @@ func (h *Handler) Create(c *gin.Context) {
 	result, err := h.svc.Create(t, userID)
 	if err != nil {
 		if errors.Is(err, ErrNoPermission) {
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "create tag failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "create tag failed")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "success", "data": result})
+	response.Created(c, result)
 }
 
 // List 处理 GET /projects/:id/tags，获取项目标签列表。
@@ -65,11 +66,11 @@ func (h *Handler) List(c *gin.Context) {
 
 	tags, err := h.svc.ListByProject(projectID, "")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "list tags failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "list tags failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": tags})
+	response.Success(c, tags)
 }
 
 // Update 处理 PUT /projects/:id/tags/:tagID，更新标签。
@@ -79,7 +80,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req updateTagReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
@@ -95,16 +96,16 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrTagNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "TAG_NOT_FOUND", "message": "tag not found"})
+			response.Error(c, http.StatusNotFound, response.CodeTagNotFound, "tag not found")
 		case errors.Is(err, ErrNoPermission):
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"code": "BAD_REQUEST", "message": err.Error()})
+			response.Error(c, http.StatusBadRequest, response.CodeBadRequest, err.Error())
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": result})
+	response.Success(c, result)
 }
 
 // Delete 处理 DELETE /projects/:id/tags/:tagID，删除标签。
@@ -115,16 +116,16 @@ func (h *Handler) Delete(c *gin.Context) {
 	if err := h.svc.Delete(tagID, userID); err != nil {
 		switch {
 		case errors.Is(err, ErrTagNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"code": "TAG_NOT_FOUND", "message": "tag not found"})
+			response.Error(c, http.StatusNotFound, response.CodeTagNotFound, "tag not found")
 		case errors.Is(err, ErrNoPermission):
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "delete tag failed"})
+			response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "delete tag failed")
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
 
 // setTaskTagsReq 设置任务标签的请求体。
@@ -138,14 +139,14 @@ func (h *Handler) SetTaskTags(c *gin.Context) {
 
 	var req setTaskTagsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	if err := h.svc.SetTaskTags(taskID, req.TagIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "set task tags failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "set task tags failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }

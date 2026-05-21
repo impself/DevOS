@@ -1,16 +1,9 @@
 package task
 
 import (
-	"errors"
 	"time"
 
 	"github.com/impself/DevOS/internal/auth"
-)
-
-var (
-	ErrTaskNotFound  = errors.New("task not found")
-	ErrNoPermission  = errors.New("no permission")
-	ErrInvalidStatus = errors.New("invalid status")
 )
 
 // validStatuses 合法的任务状态值。
@@ -133,14 +126,14 @@ func (s *service) Update(id, userID string, updates map[string]interface{}) (*Ta
 	if v, ok := updates["priority"]; ok {
 		p := v.(string)
 		if !validPriorities[p] {
-			return nil, errors.New("invalid priority")
+			return nil, ErrInvalidPriority
 		}
 		t.Priority = p
 	}
 	if v, ok := updates["type"]; ok {
 		tp := v.(string)
 		if !validTypes[tp] {
-			return nil, errors.New("invalid type")
+			return nil, ErrInvalidType
 		}
 		t.Type = tp
 	}
@@ -161,7 +154,7 @@ func (s *service) Update(id, userID string, updates map[string]interface{}) (*Ta
 		} else if parsed, err := time.Parse("2006-01-02", ds); err == nil {
 			t.DueDate = &parsed
 		} else {
-			return nil, errors.New("invalid due_date format, use RFC3339 or YYYY-MM-DD")
+			return nil, ErrInvalidDueDateFmt
 		}
 	}
 	if v, ok := updates["story_points"]; ok {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impself/DevOS/pkg/response"
 )
 
 // Handler 认证相关的 HTTP handler。
@@ -48,45 +49,26 @@ type userResponse struct {
 func (h *Handler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": err.Error(),
-		})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	user, err := h.svc.Register(req.Email, req.Username, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrUserExists) {
-			c.JSON(http.StatusConflict, gin.H{
-				"code":    "USER_EXISTS",
-				"message": "email already registered",
-			})
+			response.Error(c, http.StatusConflict, response.CodeUserExists, "email already registered")
 			return
 		}
 		if errors.Is(err, ErrUsernameExists) {
-			c.JSON(http.StatusConflict, gin.H{
-				"code":    "USERNAME_EXISTS",
-				"message": "username already taken",
-			})
+			response.Error(c, http.StatusConflict, response.CodeUsernameExists, "username already taken")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "INTERNAL_ERROR",
-			"message": "failed to create user",
-		})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "failed to create user")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"code":    0,
-		"message": "success",
-		"data": userResponse{
-			ID:       user.ID,
-			Email:    user.Email,
-			Username: user.Username,
-			Role:     user.Role,
-		},
+	response.Created(c, userResponse{
+		ID: user.ID, Email: user.Email, Username: user.Username, Role: user.Role,
 	})
 }
 
@@ -94,34 +76,21 @@ func (h *Handler) Register(c *gin.Context) {
 func (h *Handler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    "VALIDATION_ERROR",
-			"message": err.Error(),
-		})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	tokens, err := h.svc.Login(req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCreds) {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    "INVALID_CREDENTIALS",
-				"message": "invalid email or password",
-			})
+			response.Error(c, http.StatusUnauthorized, response.CodeInvalidCreds, "invalid email or password")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "INTERNAL_ERROR",
-			"message": "login failed",
-		})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "login failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"message": "success",
-		"data":    tokens,
-	})
+	response.Success(c, tokens)
 }
 
 // Me GET /api/v1/auth/me — 获取当前用户信息。需要 JWT 认证。
@@ -129,24 +98,13 @@ func (h *Handler) Me(c *gin.Context) {
 	userID := c.GetString("userID")
 	user, err := h.svc.GetByID(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    "USER_NOT_FOUND",
-			"message": "user not found",
-		})
+		response.Error(c, http.StatusNotFound, response.CodeUserNotFound, "user not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"message": "success",
-		"data": userResponse{
-			ID:       user.ID,
-			Email:    user.Email,
-			Username: user.Username,
-			Nickname: user.Nickname,
-			Avatar:   user.Avatar,
-			Role:     user.Role,
-		},
+	response.Success(c, userResponse{
+		ID: user.ID, Email: user.Email, Username: user.Username,
+		Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
 	})
 }
 
@@ -154,30 +112,19 @@ func (h *Handler) Me(c *gin.Context) {
 func (h *Handler) ListUsers(c *gin.Context) {
 	users, err := h.svc.ListUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "INTERNAL_ERROR",
-			"message": "failed to list users",
-		})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "failed to list users")
 		return
 	}
 
 	list := make([]userResponse, 0, len(users))
 	for _, u := range users {
 		list = append(list, userResponse{
-			ID:       u.ID,
-			Email:    u.Email,
-			Username: u.Username,
-			Nickname: u.Nickname,
-			Avatar:   u.Avatar,
-			Role:     u.Role,
+			ID: u.ID, Email: u.Email, Username: u.Username,
+			Nickname: u.Nickname, Avatar: u.Avatar, Role: u.Role,
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"message": "success",
-		"data":    list,
-	})
+	response.Success(c, list)
 }
 
 // updateProfileReq 更新用户资料的请求体。
@@ -192,22 +139,19 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 
 	var req updateProfileReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	user, err := h.svc.UpdateProfile(userID, req.Nickname, req.Avatar)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "update profile failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "update profile failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": 0, "message": "success",
-		"data": userResponse{
-			ID: user.ID, Email: user.Email, Username: user.Username,
-			Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
-		},
+	response.Success(c, userResponse{
+		ID: user.ID, Email: user.Email, Username: user.Username,
+		Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
 	})
 }
 
@@ -217,20 +161,20 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 
 	file, err := c.FormFile("avatar")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": "avatar file required"})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, "avatar file required")
 		return
 	}
 
 	// validate file size (max 2MB)
 	if file.Size > 2*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": "file too large, max 2MB"})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, "file too large, max 2MB")
 		return
 	}
 
 	// validate extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" && ext != ".webp" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": "only jpg/png/gif/webp allowed"})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, "only jpg/png/gif/webp allowed")
 		return
 	}
 
@@ -242,7 +186,7 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	savePath := filepath.Join(avatarDir, filename)
 
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "save file failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "save file failed")
 		return
 	}
 
@@ -250,15 +194,12 @@ func (h *Handler) UploadAvatar(c *gin.Context) {
 	avatarURL := "/avatars/" + filename
 	user, err := h.svc.UpdateProfile(userID, "", avatarURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "update avatar failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "update avatar failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code": 0, "message": "success",
-		"data": userResponse{
-			ID: user.ID, Email: user.Email, Username: user.Username,
-			Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
-		},
+	response.Success(c, userResponse{
+		ID: user.ID, Email: user.Email, Username: user.Username,
+		Nickname: user.Nickname, Avatar: user.Avatar, Role: user.Role,
 	})
 }

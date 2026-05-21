@@ -5,9 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/impself/DevOS/pkg/response"
 )
-
-var ErrNoPermission = errors.New("no permission")
 
 // Handler 处理评论相关的 HTTP 请求。
 type Handler struct {
@@ -31,17 +30,17 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req createCommentReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "VALIDATION_ERROR", "message": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
 		return
 	}
 
 	comment, err := h.svc.Create(taskID, userID, req.Content)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "create comment failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "create comment failed")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "success", "data": comment})
+	response.Created(c, comment)
 }
 
 // List 处理 GET /tasks/:taskID/comments，查询评论列表。
@@ -50,11 +49,11 @@ func (h *Handler) List(c *gin.Context) {
 
 	comments, err := h.svc.List(taskID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "list comments failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "list comments failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": comments})
+	response.Success(c, comments)
 }
 
 // Delete 处理 DELETE /tasks/:taskID/comments/:commentID，删除评论。
@@ -64,12 +63,12 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	if err := h.svc.Delete(commentID, userID); err != nil {
 		if errors.Is(err, ErrNoPermission) {
-			c.JSON(http.StatusForbidden, gin.H{"code": "FORBIDDEN", "message": "no permission"})
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "no permission")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "INTERNAL_ERROR", "message": "delete comment failed"})
+		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "delete comment failed")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	response.OK(c)
 }
