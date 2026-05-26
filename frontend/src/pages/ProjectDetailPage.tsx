@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { ArrowLeft, Pencil, UserPlus, Trash2, Plus, CircleDot, Search, LayoutGrid, List } from "lucide-react"
+import { ArrowLeft, Pencil, UserPlus, Trash2, Plus, CircleDot, Search, LayoutGrid, List, Timer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +18,9 @@ import MemberPicker from "@/components/MemberPicker"
 import TaskKanban from "@/components/TaskKanban"
 import TaskDetailDrawer from "@/components/TaskDetailDrawer"
 import CreateTaskModal from "@/components/CreateTaskModal"
+import SprintManagerModal from "@/components/SprintManagerModal"
 import { SkeletonProjectDetail } from "@/components/ui/skeleton"
+import { listSprints, type Sprint } from "@/api/sprint"
 
 const priorityConfig: Record<string, { label: string; cls: string }> = {
   high: { label: "High", cls: "bg-red-500/10 text-red-600" },
@@ -65,6 +67,9 @@ export default function ProjectDetailPage() {
 
   const [showMemberPicker, setShowMemberPicker] = useState(false)
   const [showCreateTask, setShowCreateTask] = useState(false)
+  const [showSprintManager, setShowSprintManager] = useState(false)
+  const [sprints, setSprints] = useState<Sprint[]>([])
+  const [activeSprintId, setActiveSprintId] = useState<string>("")
   const [taskSearch, setTaskSearch] = useState("")
   const [taskFilter, setTaskFilter] = useState<TaskFilters>({})
   const [taskPage, setTaskPage] = useState(1)
@@ -75,13 +80,19 @@ export default function ProjectDetailPage() {
     if (!id) return
     setLoading(true)
     try {
-      const [projRes, memRes] = await Promise.all([getProject(id), listMembers(id)])
+      const [projRes, memRes, sprintRes] = await Promise.all([getProject(id), listMembers(id), listSprints(id)])
       if (projRes.code === 0) {
         setProject(projRes.data)
         setEditName(projRes.data.name)
         setEditDesc(projRes.data.description)
       }
       if (memRes.code === 0) setMembers(memRes.data || [])
+      if (sprintRes.code === 0) {
+        const sprintList = sprintRes.data.sprints || []
+        setSprints(sprintList)
+        const active = sprintList.find((s: Sprint) => s.status === "active")
+        if (active && !activeSprintId) setActiveSprintId(active.id)
+      }
     } catch {
       toast.error("Failed to load project")
     } finally {
@@ -276,6 +287,22 @@ export default function ProjectDetailPage() {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
+            {sprints.length > 0 && (
+              <select
+                value={taskFilter.sprint_id || ""}
+                onChange={(e) => { setTaskFilter((f) => ({ ...f, sprint_id: e.target.value || undefined })); setTaskPage(1) }}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs cursor-pointer"
+              >
+                <option value="">All Sprints</option>
+                {sprints.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowSprintManager(true)} className="cursor-pointer">
+              <Timer className="size-3.5 mr-1" />
+              Sprints
+            </Button>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => setShowCreateTask(true)} className="cursor-pointer">
                 <Plus className="size-3.5 mr-1" />
@@ -472,6 +499,8 @@ export default function ProjectDetailPage() {
         <CreateTaskModal
           projectId={id}
           members={members}
+          sprints={sprints}
+          defaultSprintId={activeSprintId}
           onClose={() => setShowCreateTask(false)}
           onCreated={fetchTasks}
         />
@@ -486,6 +515,14 @@ export default function ProjectDetailPage() {
           onClose={() => setSelectedTask(null)}
           onUpdated={fetchTasks}
           onDeleted={fetchTasks}
+        />
+      )}
+
+      {showSprintManager && id && (
+        <SprintManagerModal
+          projectId={id}
+          onClose={() => setShowSprintManager(false)}
+          onSprintChange={fetchData}
         />
       )}
     </div>

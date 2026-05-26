@@ -16,6 +16,7 @@ import (
 	"github.com/impself/DevOS/internal/auth"
 	"github.com/impself/DevOS/internal/comment"
 	"github.com/impself/DevOS/internal/project"
+	"github.com/impself/DevOS/internal/sprint"
 	"github.com/impself/DevOS/internal/tag"
 	"github.com/impself/DevOS/internal/task"
 	"github.com/impself/DevOS/pkg/config"
@@ -44,7 +45,7 @@ func main() {
 	}
 
 	// 自动迁移数据库表结构，开发阶段使用，生产环境应改用 migration 工具
-	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}, &comment.Comment{}, &tag.Tag{}, &tag.TaskTag{}); err != nil {
+	if err := database.DB.AutoMigrate(&auth.User{}, &project.Project{}, &project.Member{}, &task.Task{}, &comment.Comment{}, &tag.Tag{}, &tag.TaskTag{}, &sprint.Sprint{}); err != nil {
 		logger.L.Fatalf("auto migrate: %v", err)
 	}
 
@@ -68,6 +69,10 @@ func main() {
 	commentRepo := comment.NewRepository(database.DB)
 	commentSvc := comment.NewService(commentRepo, authRepo)
 	commentHandler := comment.NewHandler(commentSvc)
+
+	sprintRepo := sprint.NewRepository(database.DB)
+	sprintSvc := sprint.NewService(sprintRepo, authRepo, projectRepo)
+	sprintHandler := sprint.NewHandler(sprintSvc)
 
 	// Gin 引擎初始化
 	if cfg.Server.Mode == "release" {
@@ -133,6 +138,13 @@ func main() {
 				p.POST("/:id/tasks/:taskID/comments", commentHandler.Create)
 				p.GET("/:id/tasks/:taskID/comments", commentHandler.List)
 				p.DELETE("/:id/tasks/:taskID/comments/:commentID", commentHandler.Delete)
+
+				// Sprint CRUD
+				p.POST("/:id/sprints", sprintHandler.Create)
+				p.GET("/:id/sprints", sprintHandler.List)
+				p.PUT("/:id/sprints/:sprintID", sprintHandler.Update)
+				p.DELETE("/:id/sprints/:sprintID", sprintHandler.Delete)
+
 				// 标签 CRUD
 				p.POST("/:id/tags", tagHandler.Create)
 				p.GET("/:id/tags", tagHandler.List)

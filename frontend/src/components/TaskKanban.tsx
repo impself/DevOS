@@ -1,6 +1,6 @@
 import { useState } from "react"
 import {
-  DndContext, DragOverlay, closestCorners,
+  DndContext, DragOverlay, closestCorners, useDroppable,
   PointerSensor, useSensor, useSensors,
   type DragStartEvent, type DragEndEvent,
 } from "@dnd-kit/core"
@@ -26,6 +26,16 @@ const priorityDot: Record<string, string> = {
 
 const typeLabel: Record<string, string> = {
   task: "T", bug: "B", feature: "F", improvement: "I",
+}
+
+// DroppableColumn 让空列也能接收拖放
+function DroppableColumn({ colId, children }: { colId: string; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id: colId })
+  return (
+    <div ref={setNodeRef} className="min-h-50 rounded-lg bg-muted/30 p-2 space-y-2">
+      {children}
+    </div>
+  )
 }
 
 interface TaskKanbanProps {
@@ -61,8 +71,9 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
 
     const taskId = String(active.id)
     const overId = String(over.id)
-    const targetColumn = columns.find((c) => c.id === overId)
 
+    // 优先检查是否拖到列（空列或列标题区域）
+    const targetColumn = columns.find((c) => c.id === overId)
     if (targetColumn) {
       const task = tasks.find((t) => t.id === taskId)
       if (task && task.status !== targetColumn.id) {
@@ -74,18 +85,20 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
           toast.error("Failed to move task")
         }
       }
-    } else {
-      const targetTask = tasks.find((t) => t.id === overId)
-      if (targetTask && targetTask.id !== taskId) {
-        const task = tasks.find((t) => t.id === taskId)
-        if (task && task.status !== targetTask.status) {
-          try {
-            await updateTask(projectId, taskId, { status: targetTask.status })
-            toast.success("Task moved")
-            onRefresh()
-          } catch {
-            toast.error("Failed to move task")
-          }
+      return
+    }
+
+    // 拖到某个任务卡片上 → 移到该任务所在的列
+    const targetTask = tasks.find((t) => t.id === overId)
+    if (targetTask && targetTask.id !== taskId) {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task && task.status !== targetTask.status) {
+        try {
+          await updateTask(projectId, taskId, { status: targetTask.status })
+          toast.success("Task moved")
+          onRefresh()
+        } catch {
+          toast.error("Failed to move task")
         }
       }
     }
@@ -110,16 +123,13 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
                 <span className="text-xs text-muted-foreground ml-auto">{colTasks.length}</span>
               </div>
 
-              {/* Drop zone */}
+              {/* Drop zone — 用 DroppableColumn 包裹，空列也能接收拖放 */}
               <SortableContext
                 id={col.id}
                 items={colTasks.map((t) => t.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div
-                  className="min-h-50 rounded-lg bg-muted/30 p-2 space-y-2"
-                  data-column={col.id}
-                >
+                <DroppableColumn colId={col.id}>
                   {colTasks.length === 0 && !activeId && (
                     <div className="py-8 text-center text-xs text-muted-foreground">No tasks</div>
                   )}
@@ -131,7 +141,7 @@ export default function TaskKanban({ tasks, projectId, canEdit, onTaskClick, onR
                       onClick={() => onTaskClick(t)}
                     />
                   ))}
-                </div>
+                </DroppableColumn>
               </SortableContext>
             </div>
           )

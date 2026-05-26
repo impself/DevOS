@@ -34,6 +34,9 @@ const (
 
 	// tag 模块
 	CodeTagNotFound      = "TAG_NOT_FOUND"
+
+	// sprint 模块
+	CodeSprintNotFound   = "SPRINT_NOT_FOUND"
 )
 
 // Success 成功响应，HTTP 200，code=0，data 为空时传 nil。

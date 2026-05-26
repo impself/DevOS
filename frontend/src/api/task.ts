@@ -41,6 +41,7 @@ export interface CreateTaskReq {
   priority?: string
   assignee_id?: string
   parent_id?: string
+  sprint_id?: string
 }
 
 export interface UpdateTaskReq {

@@ -4,16 +4,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createTask } from "@/api/task"
 import type { Member } from "@/api/project"
+import type { Sprint } from "@/api/sprint"
 import { useToast } from "@/context/ToastContext"
 
 interface CreateTaskModalProps {
   projectId: string
   members: Member[]
+  sprints?: Sprint[]
+  defaultSprintId?: string
   onClose: () => void
   onCreated: () => void
 }
 
-export default function CreateTaskModal({ projectId, members, onClose, onCreated }: CreateTaskModalProps) {
+export default function CreateTaskModal({ projectId, members, sprints, defaultSprintId, onClose, onCreated }: CreateTaskModalProps) {
   const { toast } = useToast()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -21,6 +24,7 @@ export default function CreateTaskModal({ projectId, members, onClose, onCreated
   const [priority, setPriority] = useState("medium")
   const [assigneeId, setAssigneeId] = useState("")
   const [dueDate, setDueDate] = useState("")
+  const [sprintId, setSprintId] = useState(defaultSprintId || "")
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +38,7 @@ export default function CreateTaskModal({ projectId, members, onClose, onCreated
         type: type || undefined,
         priority: priority || undefined,
         assignee_id: assigneeId || undefined,
+        sprint_id: sprintId || undefined,
       })
       if (res.code === 0 || res.code === 201) {
         toast.success("Task created")
@@ -116,7 +121,7 @@ export default function CreateTaskModal({ projectId, members, onClose, onCreated
             </div>
           </div>
 
-          {/* Assignee + Due Date row */}
+          {/* Assignee + Sprint row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Assignee</label>
@@ -133,15 +138,32 @@ export default function CreateTaskModal({ projectId, members, onClose, onCreated
                 ))}
               </select>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Due Date</label>
-              <Input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="h-9 text-sm"
-              />
-            </div>
+            {sprints && sprints.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Sprint</label>
+                <select
+                  value={sprintId}
+                  onChange={(e) => setSprintId(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm cursor-pointer"
+                >
+                  <option value="">No Sprint</option>
+                  {sprints.filter((s) => s.status !== "completed").map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Due Date */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Due Date</label>
+            <Input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="h-9 text-sm"
+            />
           </div>
 
           {/* Footer */}
