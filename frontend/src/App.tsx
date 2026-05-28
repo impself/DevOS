@@ -15,6 +15,15 @@ const RegisterPage = lazy(() =>
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"))
 const ProjectDetailPage = lazy(() => import("@/pages/ProjectDetailPage"))
 const AccountSettingsPage = lazy(() => import("@/pages/AccountSettingsPage"))
+const ProjectsPage = lazy(() => import("@/pages/ProjectsPage"))
+const DocumentsPage = lazy(() => import("@/pages/DocumentsPage"))
+const AgentPage = lazy(() => import("@/pages/AgentPage"))
+const CodePage = lazy(() => import("@/pages/CodePage"))
+const AuditPage = lazy(() => import("@/pages/AuditPage"))
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"))
+const KnowledgePage = lazy(() => import("@/pages/KnowledgePage"))
+const TeamPage = lazy(() => import("@/pages/TeamPage"))
+const SearchPage = lazy(() => import("@/pages/SearchPage"))
 
 // Minimal loading fallback for route transitions
 function PageLoader() {
@@ -37,7 +46,16 @@ export default function App() {
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectDetailPage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/agent" element={<AgentPage />} />
+              <Route path="/code" element={<CodePage />} />
+              <Route path="/knowledge" element={<KnowledgePage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/audit" element={<AuditPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<AccountSettingsPage />} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

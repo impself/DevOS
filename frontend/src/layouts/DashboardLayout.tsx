@@ -5,6 +5,14 @@ import {
   LogOut,
   LayoutDashboard,
   FolderKanban,
+  FileText,
+  Bot,
+  GitBranch,
+  BookOpen,
+  Search,
+  ShieldCheck,
+  Bell,
+  Users,
   Settings,
   Sparkles,
   Menu,
@@ -147,8 +155,8 @@ export default function DashboardLayout() {
         {!collapsed && <span className="font-semibold text-sm tracking-tight">DevOS</span>}
       </div>
 
-      {/* Main section */}
-      <SectionHeader label="Main" collapsed={collapsed} />
+      {/* Navigation section */}
+      <SectionHeader label="Navigation" collapsed={collapsed} />
       <div className="space-y-0.5">
         <NavLink
           to="/dashboard"
@@ -159,10 +167,84 @@ export default function DashboardLayout() {
           collapsed={collapsed}
         />
         <NavLink
-          to="/dashboard"
+          to="/projects"
           icon={FolderKanban}
           label="Projects"
           active={isActive("/projects")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/documents"
+          icon={FileText}
+          label="Documents"
+          active={isActive("/documents")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+      </div>
+
+      {/* Tools section */}
+      <SectionHeader label="Tools" collapsed={collapsed} />
+      <div className="space-y-0.5">
+        <NavLink
+          to="/agent"
+          icon={Bot}
+          label="AI Agent"
+          active={isActive("/agent")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/code"
+          icon={GitBranch}
+          label="Code"
+          active={isActive("/code")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/knowledge"
+          icon={BookOpen}
+          label="Knowledge Base"
+          active={isActive("/knowledge")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/search"
+          icon={Search}
+          label="Search"
+          active={isActive("/search")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+      </div>
+
+      {/* System section */}
+      <SectionHeader label="System" collapsed={collapsed} />
+      <div className="space-y-0.5">
+        <NavLink
+          to="/team"
+          icon={Users}
+          label="Team"
+          active={isActive("/team")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/notifications"
+          icon={Bell}
+          label="Notifications"
+          active={isActive("/notifications")}
+          onClick={onNavigate}
+          collapsed={collapsed}
+        />
+        <NavLink
+          to="/audit"
+          icon={ShieldCheck}
+          label="Audit Log"
+          active={isActive("/audit")}
           onClick={onNavigate}
           collapsed={collapsed}
         />

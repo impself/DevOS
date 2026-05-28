@@ -35,6 +35,11 @@ type loginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// refreshRequest 刷新 Token 请求参数。
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
 // userResponse 用户信息响应，不包含密码。
 type userResponse struct {
 	ID       string `json:"id"`
@@ -87,6 +92,23 @@ func (h *Handler) Login(c *gin.Context) {
 			return
 		}
 		response.Error(c, http.StatusInternalServerError, response.CodeInternalError, "login failed")
+		return
+	}
+
+	response.Success(c, tokens)
+}
+
+// Refresh POST /api/v1/auth/refresh — 用 refresh token 换取新的 token 对。
+func (h *Handler) Refresh(c *gin.Context) {
+	var req refreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, response.CodeValidationError, err.Error())
+		return
+	}
+
+	tokens, err := h.svc.Refresh(req.RefreshToken)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, response.CodeInvalidCreds, "invalid or expired refresh token")
 		return
 	}
 

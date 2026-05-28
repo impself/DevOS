@@ -13,6 +13,8 @@ import (
 type Service interface {
 	Register(email, username, password string) (*User, error)
 	Login(email, password string) (*LoginResult, error)
+	// Refresh 用 refresh token 换取新的 token 对。
+	Refresh(refreshToken string) (*LoginResult, error)
 	ValidateToken(tokenStr string) (*middleware.Claims, error)
 	GetByID(id string) (*User, error)
 	// ListUsers 返回所有用户列表，供成员选择器使用。
@@ -94,6 +96,38 @@ func (s *service) Login(email, password string) (*LoginResult, error) {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil, ErrInvalidCreds
+	}
+
+	tp, err := s.generateTokenPair(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResult{
+		AccessToken:  tp.AccessToken,
+		RefreshToken: tp.RefreshToken,
+		ExpiresIn:    tp.ExpiresIn,
+		User: LoginUser{
+			ID:       user.ID,
+			Email:    user.Email,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Avatar:   user.Avatar,
+			Role:     user.Role,
+		},
+	}, nil
+}
+
+// Refresh 验证 refresh token 并返回新的 token 对和用户信息。
+func (s *service) Refresh(refreshToken string) (*LoginResult, error) {
+	claims, err := s.ValidateToken(refreshToken)
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	user, err := s.repo.FindByID(claims.UserID)
+	if err != nil {
+		return nil, ErrInvalidToken
 	}
 
 	tp, err := s.generateTokenPair(user)

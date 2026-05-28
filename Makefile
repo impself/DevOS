@@ -2,12 +2,12 @@
 
 # 启动开发服务
 run:
-	go run cmd/server/main.go
+	go run ./cmd/server/
 npmrun:
 	cd frontend && npm run dev
 # 编译
 build:
-	go build -o bin/devos cmd/server/main.go
+	go build -o bin/devos ./cmd/server/
 
 # 运行测试
 test:
@@ -34,7 +34,7 @@ migrate-down:
 
 # 创建系统管理员（种子数据）
 seed:
-	go run cmd/seed/main.go
+	go run ./cmd/seed/
 
 # 清理
 clean:

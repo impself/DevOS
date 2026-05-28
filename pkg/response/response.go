@@ -37,6 +37,9 @@ const (
 
 	// sprint 模块
 	CodeSprintNotFound   = "SPRINT_NOT_FOUND"
+
+	// document 模块
+	CodeDocumentNotFound = "DOCUMENT_NOT_FOUND"
 )
 
 // Success 成功响应，HTTP 200，code=0，data 为空时传 nil。

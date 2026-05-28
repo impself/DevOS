@@ -21,6 +21,9 @@ import CreateTaskModal from "@/components/CreateTaskModal"
 import SprintManagerModal from "@/components/SprintManagerModal"
 import { SkeletonProjectDetail } from "@/components/ui/skeleton"
 import { listSprints, type Sprint } from "@/api/sprint"
+import { listDocuments, createDocument, deleteDocument, type Document as DocType } from "@/api/document"
+import DocumentList from "@/components/DocumentList"
+import DocumentEditorModal from "@/components/DocumentEditorModal"
 
 const priorityConfig: Record<string, { label: string; cls: string }> = {
   high: { label: "High", cls: "bg-red-500/10 text-red-600" },
@@ -57,7 +60,8 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
 
   const isAdmin = user?.role === "admin"
-  const canEdit = isAdmin
+  const isProjectMember = members.some((m) => m.user_id === user?.id)
+  const canEdit = isAdmin || isProjectMember
   const canManageMembers = isAdmin
 
   const [editing, setEditing] = useState(false)
@@ -75,6 +79,12 @@ export default function ProjectDetailPage() {
   const [taskPage, setTaskPage] = useState(1)
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list")
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+
+  // Document state
+  const [documents, setDocuments] = useState<DocType[]>([])
+  const [docTotal, setDocTotal] = useState(0)
+  const [docSearch, setDocSearch] = useState("")
+  const [selectedDoc, setSelectedDoc] = useState<DocType | null>(null)
 
   const fetchData = useCallback(async () => {
     if (!id) return
@@ -120,6 +130,21 @@ export default function ProjectDetailPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchTasks() }, [fetchTasks])
+
+  const fetchDocuments = useCallback(async () => {
+    if (!id) return
+    try {
+      const res = await listDocuments(id, { search: docSearch || undefined, page_size: 50 })
+      if (res.code === 0) {
+        setDocuments(res.data || [])
+        setDocTotal(res.pagination?.total || 0)
+      }
+    } catch {
+      toast.error("Failed to load documents")
+    }
+  }, [id, docSearch, toast])
+
+  useEffect(() => { fetchDocuments() }, [fetchDocuments])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -417,6 +442,36 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      {/* Documents section */}
+      <div className="border border-border rounded-lg p-6 mb-6">
+        <DocumentList
+          documents={documents}
+          total={docTotal}
+          search={docSearch}
+          canEdit={canEdit}
+          onSearchChange={setDocSearch}
+          onCreate={async () => {
+            if (!id) return
+            try {
+              const res = await createDocument(id, { title: "Untitled Document" })
+              if (res.code === 0 || res.code === 201) {
+                fetchDocuments()
+                if (res.data) setSelectedDoc(res.data)
+              }
+            } catch { toast.error("Failed to create document") }
+          }}
+          onOpen={(doc) => setSelectedDoc(doc)}
+          onDelete={async (doc) => {
+            if (!id || !confirm("Delete this document?")) return
+            try {
+              await deleteDocument(id, doc.id)
+              toast.success("Document deleted")
+              fetchDocuments()
+            } catch { toast.error("Failed to delete document") }
+          }}
+        />
+      </div>
+
       {/* Members section */}
       <div className="border border-border rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
@@ -523,6 +578,16 @@ export default function ProjectDetailPage() {
           projectId={id}
           onClose={() => setShowSprintManager(false)}
           onSprintChange={fetchData}
+        />
+      )}
+
+      {selectedDoc && id && (
+        <DocumentEditorModal
+          document={selectedDoc}
+          projectId={id}
+          canEdit={canEdit}
+          onClose={() => { setSelectedDoc(null); fetchDocuments() }}
+          onUpdated={fetchDocuments}
         />
       )}
     </div>

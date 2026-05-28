@@ -6,6 +6,8 @@ export interface LoginResponse {
   message: string
   data: {
     access_token: string
+    refresh_token: string
+    expires_in: number
     user: {
       id: string
       email: string
@@ -28,7 +30,7 @@ export interface RegisterResponse {
   }
 }
 
-// POST /auth/login — authenticate with email + password, returns JWT token
+// POST /auth/login — authenticate with email + password, returns JWT token pair
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const { data } = await api.post<LoginResponse>("/auth/login", { email, password })
   return data
@@ -45,6 +47,14 @@ export async function register(
     username,
     password,
   })
+  return data
+}
+
+// POST /auth/refresh — exchange refresh token for new access+refresh token pair
+export async function refreshToken(refreshToken: string): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>("/auth/refresh", {
+    refresh_token: refreshToken,
+  }, { _retry: true } as never)
   return data
 }
 

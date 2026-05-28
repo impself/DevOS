@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { useNavigate } from "react-router-dom"
 import * as authApi from "@/api/auth"
 
-// User profile shape stored in context and localStorage
+// User profile shape stored in context and sessionStorage
 export interface User {
   id: string
   email: string
@@ -26,45 +26,70 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// AuthProvider — wraps the app, loads session from localStorage on mount
+// AuthProvider — wraps the app, loads session on mount.
+// access_token → sessionStorage (tab-isolated for multi-account support).
+// refresh_token → localStorage (persists across tabs/closes, enables session restore).
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  // Restore session from localStorage on mount, then refresh from server
+  // Restore session on mount: try access_token first, then refresh_token
   useEffect(() => {
     const init = async () => {
-      const savedToken = localStorage.getItem("access_token")
-      const savedUser = localStorage.getItem("user")
+      const savedToken = sessionStorage.getItem("access_token")
+      const savedUser = sessionStorage.getItem("user")
+
+      // Path A: access_token exists in sessionStorage — verify and refresh user data
       if (savedToken && savedUser) {
         try {
           setToken(savedToken)
           setUser(JSON.parse(savedUser))
-          // Refresh user data from server to get latest nickname/avatar
           const meRes = await authApi.getMe()
           if (meRes.code === 0 && meRes.data) {
             const refreshed = { ...JSON.parse(savedUser), ...meRes.data }
             setUser(refreshed)
-            localStorage.setItem("user", JSON.stringify(refreshed))
+            sessionStorage.setItem("user", JSON.stringify(refreshed))
           }
         } catch {
-          localStorage.removeItem("access_token")
-          localStorage.removeItem("user")
+          // getMe failed, 401 interceptor will try refresh or redirect
+          sessionStorage.removeItem("access_token")
+          sessionStorage.removeItem("user")
+        }
+        setLoading(false)
+        return
+      }
+
+      // Path B: no access_token, try to restore from refresh_token in localStorage
+      const savedRefreshToken = localStorage.getItem("refresh_token")
+      if (savedRefreshToken) {
+        try {
+          const res = await authApi.refreshToken(savedRefreshToken)
+          if (res.code === 0 && res.data) {
+            sessionStorage.setItem("access_token", res.data.access_token)
+            sessionStorage.setItem("user", JSON.stringify(res.data.user))
+            localStorage.setItem("refresh_token", res.data.refresh_token)
+            setToken(res.data.access_token)
+            setUser(res.data.user)
+          }
+        } catch {
+          localStorage.removeItem("refresh_token")
         }
       }
+
       setLoading(false)
     }
     init()
   }, [])
 
-  // Login — call API, persist token + user, navigate to dashboard
+  // Login — call API, persist tokens, navigate to dashboard
   const handleLogin = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password)
     if (res.code === 0 && res.data) {
-      localStorage.setItem("access_token", res.data.access_token)
-      localStorage.setItem("user", JSON.stringify(res.data.user))
+      sessionStorage.setItem("access_token", res.data.access_token)
+      localStorage.setItem("refresh_token", res.data.refresh_token)
+      sessionStorage.setItem("user", JSON.stringify(res.data.user))
       setToken(res.data.access_token)
       setUser(res.data.user)
       navigate("/dashboard")
@@ -78,28 +103,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authApi.register(email, username, password)
     const res = await authApi.login(email, password)
     if (res.code === 0 && res.data) {
-      localStorage.setItem("access_token", res.data.access_token)
-      localStorage.setItem("user", JSON.stringify(res.data.user))
+      sessionStorage.setItem("access_token", res.data.access_token)
+      localStorage.setItem("refresh_token", res.data.refresh_token)
+      sessionStorage.setItem("user", JSON.stringify(res.data.user))
       setToken(res.data.access_token)
       setUser(res.data.user)
       navigate("/dashboard")
     }
   }, [navigate])
 
-  // Logout — clear state and localStorage, redirect to login
+  // Logout — clear all state and storage, redirect to login
   const handleLogout = useCallback(() => {
-    localStorage.removeItem("access_token")
-    localStorage.removeItem("user")
-    localStorage.removeItem("devos_remember_email")
+    sessionStorage.removeItem("access_token")
+    sessionStorage.removeItem("user")
+    localStorage.removeItem("refresh_token")
     setToken(null)
     setUser(null)
     navigate("/login")
   }, [navigate])
 
-  // Update user in context and localStorage
+  // Update user in context and sessionStorage
   const updateUser = useCallback((updated: User) => {
     setUser(updated)
-    localStorage.setItem("user", JSON.stringify(updated))
+    sessionStorage.setItem("user", JSON.stringify(updated))
   }, [])
 
   return (
