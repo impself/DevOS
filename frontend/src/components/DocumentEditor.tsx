@@ -10,29 +10,18 @@ import Link from "@tiptap/extension-link"
 import TaskList from "@tiptap/extension-task-list"
 import TaskItem from "@tiptap/extension-task-item"
 import Collaboration from "@tiptap/extension-collaboration"
-import CollaborationCursor from "@tiptap/extension-collaboration-cursor"
 import { common, createLowlight } from "lowlight"
 import type * as Y from "yjs"
-import type { CollabProvider } from "@/lib/collab-provider"
 import EditorToolbar from "./EditorToolbar"
 
 const lowlight = createLowlight(common)
-
-// Random cursor colors for different users
-const CURSOR_COLORS = [
-  "#f87171", "#fb923c", "#fbbf24", "#a3e635",
-  "#34d399", "#22d3ee", "#60a5fa", "#a78bfa",
-  "#f472b6", "#e879f9",
-]
 
 interface DocumentEditorProps {
   content: Record<string, unknown> | null
   onUpdate: (content: Record<string, unknown>) => void
   editable?: boolean
-  // Collaborative mode props (optional)
+  // Collaborative mode: Y.Doc instance enables real-time sync
   ydoc?: Y.Doc | null
-  provider?: CollabProvider | null
-  userName?: string
 }
 
 export default function DocumentEditor({
@@ -40,12 +29,8 @@ export default function DocumentEditor({
   onUpdate,
   editable = true,
   ydoc,
-  provider,
-  userName,
 }: DocumentEditorProps) {
-  const isCollab = !!ydoc && !!provider
-
-  const userColor = CURSOR_COLORS[Math.abs(hashCode(userName || "anonymous")) % CURSOR_COLORS.length]
+  const isCollab = !!ydoc
 
   const editor = useEditor({
     extensions: [
@@ -62,36 +47,17 @@ export default function DocumentEditor({
       Link.configure({ openOnClick: false }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      // Collaboration extension — binds TipTap to Yjs for real-time sync
       ...(isCollab
         ? [
             Collaboration.configure({
               document: ydoc!,
             }),
-            CollaborationCursor.configure({
-              provider: provider,
-              user: { name: userName || "Anonymous", color: userColor },
-              render: (user) => {
-                const cursor = document.createElement("span")
-                cursor.classList.add("collab-cursor")
-                cursor.style.borderColor = user.color
-
-                const label = document.createElement("div")
-                label.classList.add("collab-cursor-label")
-                label.style.backgroundColor = user.color
-                label.insertBefore(document.createTextNode(user.name || "Anonymous"), null)
-
-                cursor.insertBefore(label, null)
-                return cursor
-              },
-              selectionRender: (user) => ({
-                nodeName: "span",
-                class: "collab-selection",
-                style: `background-color: ${user.color}22`,
-              }),
-            }),
           ]
         : []),
     ],
+    // Always pass content — Collaboration extension uses it to initialize
+    // the Yjs XmlFragment when empty, or uses server-synced state if present.
     content: content || { type: "doc", content: [{ type: "paragraph" }] },
     editable,
     onUpdate: ({ editor }) => {
@@ -110,14 +76,4 @@ export default function DocumentEditor({
       <EditorContent editor={editor} />
     </div>
   )
-}
-
-// Simple string hash for deterministic color assignment
-function hashCode(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i)
-    hash |= 0
-  }
-  return hash
 }

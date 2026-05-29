@@ -50,7 +50,7 @@ func NewHandler(hub *Hub, store StateStore, access AccessChecker, jwtSecret stri
 // HandleCollab 处理 WebSocket 升级请求。
 // URL: GET /api/v1/projects/:projectID/collab/:docID?token=xxx
 func (h *Handler) HandleCollab(c *gin.Context) {
-	projectID := c.Param("projectID")
+	projectID := c.Param("id")
 	docID := c.Param("docID")
 
 	// JWT 认证：从 query param 读取 token（WebSocket 无法设 Authorization header）

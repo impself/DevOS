@@ -8,7 +8,6 @@ import DocumentEditor from "./DocumentEditor"
 import { CollabProvider } from "@/lib/collab-provider"
 import { getDocument, updateDocument, type Document } from "@/api/document"
 import { useToast } from "@/context/ToastContext"
-import { useAuth } from "@/context/AuthContext"
 import "./CollabCursors.css"
 
 interface DocumentEditorModalProps {
@@ -21,7 +20,6 @@ interface DocumentEditorModalProps {
 
 export default function DocumentEditorModal({ document, projectId, canEdit, onClose, onUpdated }: DocumentEditorModalProps) {
   const { toast } = useToast()
-  const { user } = useAuth()
   const [title, setTitle] = useState(document.title)
   const [content, setContent] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,14 +31,11 @@ export default function DocumentEditorModal({ document, projectId, canEdit, onCl
 
   // Yjs state — stored in state so DocumentEditor can consume during render
   const [ydoc, setYdoc] = useState<Y.Doc | null>(null)
-  const [collabProvider, setCollabProvider] = useState<CollabProvider | null>(null)
 
   // Load document content + init collaborative editing
   useEffect(() => {
     let cancelled = false
-    const doc = new Y.Doc()
-    const awareness = new Awareness(doc)
-    awarenessRef.current = awareness
+    let prov: CollabProvider | null = null
 
     const init = async () => {
       // Load full document from REST API
@@ -54,44 +49,65 @@ export default function DocumentEditorModal({ document, projectId, canEdit, onCl
         toast.error("Failed to load document")
       }
 
-      if (cancelled) return
+      if (cancelled) { setLoading(false); return }
 
-      // Initialize collaborative editing
-      const token = sessionStorage.getItem("access_token")
-      if (token) {
-        const wsUrl = `ws://localhost:8080/api/v1/projects/${projectId}/collab/${document.id}?token=${token}`
-        const prov = new CollabProvider(wsUrl, doc, awareness)
-        prov.connect()
+      // Try collaborative editing — fallback to standalone on error
+      try {
+        const token = sessionStorage.getItem("access_token")
+        if (token) {
+          const doc = new Y.Doc()
+          const awareness = new Awareness(doc)
+          awarenessRef.current = awareness
 
-        // Wait for server state sync, then expose Yjs to editor
-        setTimeout(() => {
-          if (!cancelled) {
+          const wsUrl = `ws://localhost:8080/api/v1/projects/${projectId}/collab/${document.id}?token=${token}`
+          prov = new CollabProvider(wsUrl, doc, awareness)
+          prov.connect()
+
+          // Track online users via awareness
+          awareness.on("change", () => {
+            if (!cancelled) {
+              setOnlineUsers(awareness.getStates().size)
+            }
+          })
+
+          // Wait for WebSocket to actually connect before exposing Yjs to editor.
+          // If collab fails, ydoc stays null → editor uses standalone mode with content prop.
+          const connected = await new Promise<boolean>((resolve) => {
+            const checkInterval = setInterval(() => {
+              if (prov!.connected) {
+                clearInterval(checkInterval)
+                resolve(true)
+              }
+            }, 100)
+            setTimeout(() => {
+              clearInterval(checkInterval)
+              resolve(false)
+            }, 5000)
+          })
+
+          if (!cancelled && connected) {
             setYdoc(doc)
-            setCollabProvider(prov)
-            setLoading(false)
+          } else {
+            // Collab didn't connect — cleanup, fall back to standalone
+            if (prov) { prov.destroy(); prov = null }
           }
-        }, 1200)
-      } else {
-        // No token — standalone mode
-        setLoading(false)
+        }
+      } catch {
+        // Collab failed — fall through to standalone mode
+        prov = null
       }
+
+      if (!cancelled) setLoading(false)
     }
 
     init()
 
-    // Track online users via awareness
-    awareness.on("change", () => {
-      if (!cancelled) {
-        setOnlineUsers(awareness.getStates().size)
-      }
-    })
-
     return () => {
       cancelled = true
-      if (collabProvider) {
-        collabProvider.destroy()
+      if (prov) prov.destroy()
+      if (awarenessRef.current) {
+        try { awarenessRef.current.doc?.destroy() } catch { /* noop */ }
       }
-      doc.destroy()
       awarenessRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,8 +199,6 @@ export default function DocumentEditorModal({ document, projectId, canEdit, onCl
               onUpdate={handleContentUpdate}
               editable={canEdit}
               ydoc={ydoc}
-              provider={collabProvider}
-              userName={user?.nickname || user?.username || "Anonymous"}
             />
           </div>
         )}

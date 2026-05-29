@@ -18,25 +18,31 @@ type Claims struct {
 }
 
 // Auth 返回 JWT 认证中间件。
-// 从 Authorization: Bearer <token> 头中解析 Token，
+// 优先从 Authorization: Bearer <token> 头中解析 Token，
+// WebSocket 等无法设置 header 的场景回退到 ?token=xxx query param。
 // 验证通过后将 userID、email、role 写入 gin.Context。
 func Auth(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tokenStr := ""
+
+		// 优先从 Authorization header 取 token
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			t := strings.TrimPrefix(authHeader, "Bearer ")
+			if t != authHeader {
+				tokenStr = t
+			}
+		}
+
+		// header 没取到，回退到 query param（WebSocket 连接使用）
+		if tokenStr == "" {
+			tokenStr = c.Query("token")
+		}
+
+		if tokenStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"code":    "UNAUTHORIZED",
 				"message": "missing authorization header",
-			})
-			return
-		}
-
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-		// TrimPrefix 没找到前缀时返回原字符串，说明格式不对
-		if tokenStr == authHeader {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"code":    "UNAUTHORIZED",
-				"message": "invalid authorization format, expected Bearer token",
 			})
 			return
 		}
